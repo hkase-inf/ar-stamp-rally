@@ -6,6 +6,14 @@
 <title>情報の偉人 ARスタンプラリー</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 </head>
 <body>
 
@@ -16,6 +24,7 @@
     <p class="lead">廊下のポスターにスマホをかざして、<br>9人の偉人スタンプを集めよう。</p>
     <button id="btn-open-camera" class="btn-primary">はじめる（カメラ起動）</button>
     <p class="hint">9人全員のポスターに対応しています</p>
+    <button id="btn-debug-fill" class="btn-debug">🔧 テスト：9個まとめて集めてボーナスへ</button>
   </div>
 </div>
 
@@ -54,6 +63,8 @@
       </div>
 
       <p class="passport-count"><span id="stamp-count">0</span> / 9 個 集めた</p>
+
+      <button id="btn-bonus-enter" class="btn-primary btn-bonus hidden">🎉 ボーナスステージへ</button>
       <button id="btn-continue" class="btn-primary">カメラに戻る</button>
     </div>
 
@@ -61,6 +72,35 @@
       <div class="ink-ring"></div>
       <img src="assets/grace-hopper-stamp.png" alt="" class="stamp-image">
       <p class="get-label">GET!</p>
+    </div>
+  </div>
+</div>
+
+<div id="screen-bonus" class="screen">
+  <video id="bonus-camera-feed" autoplay playsinline muted></video>
+  <canvas id="bonus-three-canvas"></canvas>
+  <canvas id="bonus-capture-canvas" class="hidden"></canvas>
+
+  <div id="bonus-loading" class="bonus-loading hidden">
+    <div class="spinner"></div>
+    <p>しずっぴーを呼んでいます…</p>
+  </div>
+
+  <div id="bonus-camera-fallback" class="camera-fallback hidden">
+    <p>カメラを起動できませんでした。<br>カメラの利用を許可してもう一度お試しください。</p>
+  </div>
+
+  <div class="bonus-hud">
+    <button id="btn-bonus-flip" class="btn-icon" title="インカメラ／アウトカメラ切り替え">🔄</button>
+    <button id="btn-bonus-capture" class="btn-primary btn-scan hidden">📸 撮影する</button>
+    <button id="btn-bonus-back" class="btn-text">スタンプカードに戻る</button>
+  </div>
+
+  <div id="bonus-result" class="bonus-result hidden">
+    <img id="bonus-result-img" alt="しずっぴーと撮った写真">
+    <div class="bonus-result-actions">
+      <button id="btn-bonus-save" class="btn-primary">保存する</button>
+      <button id="btn-bonus-retake" class="btn-text">撮り直す</button>
     </div>
   </div>
 </div>

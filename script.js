@@ -221,6 +221,7 @@ function renderPassport(justFilledId) {
   });
 
   document.getElementById("stamp-count").textContent = collected.length;
+  document.getElementById("btn-bonus-enter").classList.toggle("hidden", collected.length < FIGURES.length);
 }
 
 /* ---------------- little synth "thunk" sound ---------------- */
@@ -287,6 +288,220 @@ function triggerStamp() {
   setTimeout(() => showFigureBio(figure), 1950);
 }
 
+/* ---------------- bonus stage (shizuppi photo booth) ---------------- */
+/* Three.js + the mascot model are only fetched the first time a visitor
+   actually reaches this screen (9/9 stamps) -- never on initial page load. */
+
+let threeModules = null; // cached after first dynamic import
+let bonusStream = null;
+let bonusFacingMode = "user";
+let bonusRenderer, bonusScene, bonusCamera, bonusMixer, bonusClock, bonusRAF;
+
+async function loadThreeModules() {
+  if (threeModules) return threeModules;
+  const [THREE, { GLTFLoader }, { DRACOLoader }] = await Promise.all([
+    import("three"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/loaders/DRACOLoader.js"),
+  ]);
+  threeModules = { THREE, GLTFLoader, DRACOLoader };
+  return threeModules;
+}
+
+function setupBonusScene(THREE, canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 0.2, 5.2);
+  camera.lookAt(0, -0.2, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const key = new THREE.DirectionalLight(0xffffff, 1.8);
+  key.position.set(2, 3, 4);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.6);
+  fill.position.set(-3, 1, 2);
+  scene.add(fill);
+
+  return { renderer, scene, camera };
+}
+
+function resizeBonusRenderer() {
+  if (!bonusRenderer) return;
+  const el = document.getElementById("screen-bonus");
+  const w = el.clientWidth, h = el.clientHeight;
+  bonusRenderer.setSize(w, h, false);
+  bonusCamera.aspect = w / h;
+  bonusCamera.updateProjectionMatrix();
+}
+
+async function initBonusThree() {
+  const { THREE, GLTFLoader, DRACOLoader } = await loadThreeModules();
+  const canvas = document.getElementById("bonus-three-canvas");
+  const built = setupBonusScene(THREE, canvas);
+  bonusRenderer = built.renderer;
+  bonusScene = built.scene;
+  bonusCamera = built.camera;
+  resizeBonusRenderer();
+
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath("https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/");
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
+
+  const gltf = await new Promise((resolve, reject) => {
+    gltfLoader.load("assets/shizuppi.glb", resolve, undefined, reject);
+  });
+
+  const model = gltf.scene;
+  bonusScene.add(model);
+
+  // auto-frame: center the model horizontally, sit it on the "floor" (y=0),
+  // and place the camera far enough back that the full height fits in view
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= box.min.y;
+
+  const halfHeight = (size.y / 2) * 1.35; // margin so nothing crops
+  const dist = halfHeight / Math.tan((bonusCamera.fov / 2) * Math.PI / 180);
+  bonusCamera.position.set(0, size.y * 0.5, dist);
+  bonusCamera.lookAt(0, size.y * 0.5, 0);
+
+  bonusMixer = new THREE.AnimationMixer(model);
+  const clip = gltf.animations.find(a => a.name === "Wave") || gltf.animations[0];
+  if (clip) bonusMixer.clipAction(clip).play();
+
+  bonusClock = new THREE.Clock();
+  startBonusRenderLoop();
+}
+
+function startBonusRenderLoop() {
+  if (bonusRAF) return; // already running
+  bonusClock.getDelta(); // drop the idle gap since the last frame
+  const tick = () => {
+    bonusRAF = requestAnimationFrame(tick);
+    if (bonusMixer) bonusMixer.update(bonusClock.getDelta());
+    bonusRenderer.render(bonusScene, bonusCamera);
+  };
+  tick();
+}
+
+function stopBonusRenderLoop() {
+  if (bonusRAF) cancelAnimationFrame(bonusRAF);
+  bonusRAF = null;
+}
+
+async function startBonusCamera() {
+  const video = document.getElementById("bonus-camera-feed");
+  const fallback = document.getElementById("bonus-camera-fallback");
+  fallback.classList.add("hidden");
+  try {
+    bonusStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: bonusFacingMode },
+      audio: false,
+    });
+    video.srcObject = bonusStream;
+  } catch (err) {
+    console.warn("bonus camera unavailable", err);
+    fallback.classList.remove("hidden");
+  }
+}
+
+function stopBonusCamera() {
+  if (bonusStream) {
+    bonusStream.getTracks().forEach(t => t.stop());
+    bonusStream = null;
+  }
+}
+
+async function enterBonusStage() {
+  showScreen("screen-bonus");
+  document.getElementById("bonus-result").classList.add("hidden");
+  document.getElementById("btn-bonus-capture").classList.add("hidden");
+  document.getElementById("bonus-loading").classList.remove("hidden");
+
+  await startBonusCamera();
+  try {
+    if (!bonusRenderer) {
+      await initBonusThree();
+    } else {
+      resizeBonusRenderer();
+      startBonusRenderLoop();
+    }
+    window.addEventListener("resize", resizeBonusRenderer);
+    document.getElementById("btn-bonus-capture").classList.remove("hidden");
+  } catch (err) {
+    console.error("failed to load bonus stage 3D content", err);
+  }
+  document.getElementById("bonus-loading").classList.add("hidden");
+}
+
+function exitBonusStage() {
+  stopBonusCamera();
+  stopBonusRenderLoop();
+  window.removeEventListener("resize", resizeBonusRenderer);
+  showScreen("screen-stamp");
+}
+
+async function flipBonusCamera() {
+  bonusFacingMode = bonusFacingMode === "user" ? "environment" : "user";
+  stopBonusCamera();
+  await startBonusCamera();
+}
+
+function captureBonusPhoto() {
+  const video = document.getElementById("bonus-camera-feed");
+  const threeCanvas = document.getElementById("bonus-three-canvas");
+  const out = document.getElementById("bonus-capture-canvas");
+  const w = video.videoWidth || threeCanvas.width;
+  const h = video.videoHeight || threeCanvas.height;
+  out.width = w;
+  out.height = h;
+  const ctx = out.getContext("2d");
+  ctx.drawImage(video, 0, 0, w, h);
+  ctx.drawImage(threeCanvas, 0, 0, w, h);
+
+  out.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById("bonus-result-img");
+    img.src = url;
+    img.dataset.blobUrl = url;
+    document.getElementById("bonus-result").classList.remove("hidden");
+  }, "image/png");
+}
+
+async function saveBonusPhoto() {
+  const img = document.getElementById("bonus-result-img");
+  const resp = await fetch(img.src);
+  const blob = await resp.blob();
+  const file = new File([blob], "shizuppi.png", { type: "image/png" });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "しずっぴーと記念写真" });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      console.warn("share failed, falling back to download", err);
+    }
+  }
+
+  const a = document.createElement("a");
+  a.href = img.src;
+  a.download = "shizuppi.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 /* ---------------- wiring ---------------- */
 
 document.getElementById("btn-open-camera").addEventListener("click", () => {
@@ -303,6 +518,26 @@ document.getElementById("btn-scan").addEventListener("click", triggerStamp);
 
 document.getElementById("btn-continue").addEventListener("click", () => {
   showScreen("screen-camera");
+});
+
+document.getElementById("btn-bonus-enter").addEventListener("click", enterBonusStage);
+document.getElementById("btn-bonus-back").addEventListener("click", exitBonusStage);
+document.getElementById("btn-bonus-flip").addEventListener("click", flipBonusCamera);
+document.getElementById("btn-bonus-capture").addEventListener("click", captureBonusPhoto);
+document.getElementById("btn-bonus-save").addEventListener("click", saveBonusPhoto);
+document.getElementById("btn-bonus-retake").addEventListener("click", () => {
+  const img = document.getElementById("bonus-result-img");
+  if (img.dataset.blobUrl) URL.revokeObjectURL(img.dataset.blobUrl);
+  document.getElementById("bonus-result").classList.add("hidden");
+});
+
+// debug-only shortcut for testing: fills every stamp and jumps straight to
+// the bonus stage so it doesn't need to be reached by scanning all 9 QR codes
+document.getElementById("btn-debug-fill").addEventListener("click", () => {
+  saveCollected(FIGURES.map(f => f.id));
+  renderPassport(null);
+  showScreen("screen-stamp");
+  enterBonusStage();
 });
 
 renderPassport(null);
