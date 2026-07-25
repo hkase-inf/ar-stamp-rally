@@ -1,5 +1,12 @@
 const FIGURES = [
-  { id: "grace-hopper",     name: "Grace Hopper",      demo: true, qrMatch: "gratefigures_01" },
+  {
+    id: "grace-hopper",
+    name: "Grace Hopper（グレイス・ホッパー）",
+    demo: true,
+    qrMatch: "gratefigures_01",
+    bio: "1906–1992。アメリカ海軍少将であり計算機科学者。プログラミング言語を人間にとって読みやすいものにしようと、世界最初期のコンパイラを開発しました。その成果は後にCOBOLの誕生へとつながり、今日の情報システムの基盤を築いたことから「コンピュータプログラミングの母」とも呼ばれています。",
+    bioLink: "https://wwp.shizuoka.ac.jp/vision-i/%E6%83%85%E5%A0%B1%E5%AD%A6%E3%81%AE%E5%81%89%E4%BA%BA/#gratefigures_01",
+  },
   { id: "tim-berners-lee",  name: "Tim Berners-Lee",   demo: false },
   { id: "marvin-minsky",    name: "Marvin Minsky",     demo: false },
   { id: "alan-turing",      name: "Alan Turing",       demo: false },
@@ -178,10 +185,25 @@ function playThunk() {
   }
 }
 
+function showFigureBio(figure) {
+  const bio = document.getElementById("figure-bio");
+  document.getElementById("figure-bio-name").textContent = figure.name;
+  document.getElementById("figure-bio-text").textContent = figure.bio || "";
+  const link = document.getElementById("figure-bio-link");
+  if (figure.bioLink) {
+    link.href = figure.bioLink;
+    link.classList.remove("hidden");
+  } else {
+    link.classList.add("hidden");
+  }
+  bio.classList.remove("hidden");
+}
+
 function triggerStamp() {
   if (!recognizedFigure) return;
+  const figure = recognizedFigure;
   const collected = getCollected();
-  const id = recognizedFigure.id;
+  const id = figure.id;
   const alreadyHad = collected.includes(id);
   if (!alreadyHad) {
     collected.push(id);
@@ -190,6 +212,7 @@ function triggerStamp() {
 
   showScreen("screen-stamp");
   document.getElementById("screen-stamp").classList.add("active");
+  document.getElementById("figure-bio").classList.add("hidden");
 
   // restart the fx animation each time
   const fx = document.getElementById("stamp-fx");
@@ -199,6 +222,7 @@ function triggerStamp() {
 
   renderPassport(alreadyHad ? null : id);
   setTimeout(playThunk, 350);
+  setTimeout(() => showFigureBio(figure), 1250);
 }
 
 /* ---------------- wiring ---------------- */
