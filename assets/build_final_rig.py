@@ -11,16 +11,28 @@ bpy.ops.wm.open_mainfile(filepath=MASTER_BLEND)
 
 arm_obj = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
 
-# --- 1. fix hat attachment: it was object-parented to the body (rigid,
-# ignores all pose deformation) instead of bone-parented to the head ---
-hat = bpy.data.objects["帽子"]
-if hat.parent_type != "BONE":
-    arm_obj.data.bones.active = arm_obj.data.bones["Head"]
+
+def bone_parent(obj_name, bone_name):
+    obj = bpy.data.objects[obj_name]
+    if obj.parent_type == "BONE" and obj.parent_bone == bone_name:
+        return
+    arm_obj.data.bones.active = arm_obj.data.bones[bone_name]
     bpy.ops.object.select_all(action="DESELECT")
-    hat.select_set(True)
+    obj.select_set(True)
     arm_obj.select_set(True)
     bpy.context.view_layer.objects.active = arm_obj
     bpy.ops.object.parent_set(type="BONE", keep_transform=True)
+
+
+# --- 1. fix rigid prop attachment: these were object-parented to the body
+# (rigid, ignore all pose deformation -- e.g. stayed behind during Spin)
+# instead of bone-parented to the bone they should follow ---
+bone_parent("帽子", "Head")
+bone_parent("右目", "Head")
+bone_parent("左目", "Head")
+bone_parent("鼻", "Head")
+bone_parent("揺れもの", "Head")
+bone_parent("足", "Hip")
 
 # --- 2. fix the body material: real texture, tinted blue so it clearly
 # reads as blue (UV layout otherwise favors the texture's white highlights) ---
@@ -57,12 +69,13 @@ for node in list(nose_mat.node_tree.nodes):
     if node.type == "TEX_IMAGE":
         nose_mat.node_tree.nodes.remove(node)
 
-# --- 4. author two more motions (kept to arm bones + rigid Hip transforms,
-# since spine/chest bends visibly tear this garment-shaped mesh) ---
+# --- 4. (re)author all three motions. IMPORTANT: verified by direct matrix
+# computation that the Hip bone's "up" axis is local Y, not Z (Z actually
+# points along world -Y) -- using Z here is what made Jump move sideways. ---
 bpy.context.view_layer.objects.active = arm_obj
 bpy.ops.object.mode_set(mode="POSE")
 pb = arm_obj.pose.bones
-for name in ["Upper Arm_R", "Lower Arm_R", "Upper Arm_L", "Lower Arm_L", "Hip"]:
+for name in ["Upper Arm_R", "Lower Arm_R", "Upper Arm_L", "Lower Arm_L", "Hip", "Spine", "Chest"]:
     pb[name].rotation_mode = "XYZ"
 
 FPS = 24
@@ -102,6 +115,24 @@ def linearize(action):
 
 arm_obj.animation_data_create()
 
+# --- Wave: friendly wave + gentle idle bounce ---
+WAVE_FRAMES = 60
+WAVE_CYCLES = 3
+wave_action = new_action("Wave")
+for f in range(1, WAVE_FRAMES + 1):
+    t = (f - 1) / WAVE_FRAMES
+    swing = 25 + 15 * math.sin(2 * math.pi * WAVE_CYCLES * t)
+    keyframe_euler("Upper Arm_R", f, x=75)
+    keyframe_euler("Lower Arm_R", f, x=-30, z=swing)
+    keyframe_euler("Upper Arm_L", f, x=-70)
+    keyframe_euler("Lower Arm_L", f, x=15)
+    bounce = 0.12 * (0.5 - 0.5 * math.cos(2 * math.pi * 2 * t))
+    keyframe_loc("Hip", f, y=bounce)
+    sway = 6 * math.sin(2 * math.pi * 1 * t)
+    keyframe_euler("Spine", f, y=sway * 0.5)
+    keyframe_euler("Chest", f, y=-sway * 0.3)
+linearize(wave_action)
+
 # --- Jump: crouch-launch-land loop, both arms thrown up ---
 JUMP_FRAMES = 40
 jump_action = new_action("Jump")
@@ -110,23 +141,21 @@ for f in range(1, JUMP_FRAMES + 1):
     launch = math.sin(2 * math.pi * t)
     bounce = max(0.0, launch) ** 0.6 * 1.35
     squash = -0.12 if launch < -0.6 else 0.0  # tiny crouch dip before/after
-    keyframe_loc("Hip", f, z=bounce + squash)
+    keyframe_loc("Hip", f, y=bounce + squash)
     keyframe_euler("Upper Arm_R", f, x=80)
     keyframe_euler("Lower Arm_R", f, x=-15)
     keyframe_euler("Upper Arm_L", f, x=80)
     keyframe_euler("Lower Arm_L", f, x=-15)
 linearize(jump_action)
-bpy.context.scene.frame_start = 1
-bpy.context.scene.frame_end = JUMP_FRAMES
 
-# --- Spin: full 360 degree turn, arms held out ---
+# --- Spin: full 360 degree turn around the vertical axis, arms held out ---
 SPIN_FRAMES = 60
 spin_action = new_action("Spin")
 for f in range(1, SPIN_FRAMES + 1):
     t = (f - 1) / SPIN_FRAMES
-    keyframe_euler("Hip", f, z=360 * t)
+    keyframe_euler("Hip", f, y=360 * t)
     bounce = 0.08 * (0.5 - 0.5 * math.cos(2 * math.pi * 2 * t))
-    keyframe_loc("Hip", f, z=bounce)
+    keyframe_loc("Hip", f, y=bounce)
     keyframe_euler("Upper Arm_R", f, x=22)
     keyframe_euler("Lower Arm_R", f, x=-8)
     keyframe_euler("Upper Arm_L", f, x=22)
@@ -134,10 +163,9 @@ for f in range(1, SPIN_FRAMES + 1):
 linearize(spin_action)
 
 # restore Wave as the assigned/default action and neutral display frame
-wave_action = bpy.data.actions.get("Wave")
 arm_obj.animation_data.action = wave_action
 bpy.context.scene.frame_start = 1
-bpy.context.scene.frame_end = 60
+bpy.context.scene.frame_end = WAVE_FRAMES
 bpy.context.scene.frame_set(1)
 
 print("actions:", [a.name for a in bpy.data.actions])

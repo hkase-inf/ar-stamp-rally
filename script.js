@@ -300,18 +300,22 @@ let bonusModel = null;
 let bonusClips = {};
 let bonusActiveAction = null;
 
-// front-facing tilt (drag, +/-30deg) and user scale (pinch)
-const BONUS_FRONT_ROTATION_Y = Math.PI / 2; // rotates the model's front to face the camera
-const BONUS_TILT_LIMIT = Math.PI / 6; // 30 degrees
-const BONUS_SCALE_MIN = 0.5;
-const BONUS_SCALE_MAX = 2.0;
-let bonusTiltY = 0;
-let bonusUserScale = 1;
+// the model faces the camera at a fixed small scale (its low-poly mesh
+// looks rough up close); drag repositions it around the frame instead
+const BONUS_FRONT_ROTATION_Y = -Math.PI / 2; // rotates the model's front to face the camera
+const BONUS_FIXED_SCALE = 0.6;
+let bonusModelSize = null; // THREE.Vector3, set at load time, used to clamp drag bounds
+let bonusModelBaseX = 0;
+let bonusModelBaseY = 0;
+let bonusOffsetX = 0;
+let bonusOffsetY = 0;
 
 function applyBonusTransform() {
   if (!bonusModel) return;
-  bonusModel.rotation.y = BONUS_FRONT_ROTATION_Y + bonusTiltY;
-  bonusModel.scale.setScalar(bonusUserScale);
+  bonusModel.rotation.y = BONUS_FRONT_ROTATION_Y;
+  bonusModel.scale.setScalar(BONUS_FIXED_SCALE);
+  bonusModel.position.x = bonusModelBaseX + bonusOffsetX;
+  bonusModel.position.y = bonusModelBaseY + bonusOffsetY;
 }
 
 async function loadThreeModules() {
@@ -378,9 +382,20 @@ async function initBonusThree() {
   bonusScene.add(model);
   bonusModel = model;
 
-  // auto-frame: center the model horizontally, sit it on the "floor" (y=0),
-  // and place the camera far enough back that the full height fits in view
-  // (with extra headroom for the Jump motion's bounce)
+  // frame the camera for the model's full (unscaled) size -- this leaves
+  // visible room around the smaller, fixed-scale model for repositioning
+  const fullBox = new THREE.Box3().setFromObject(model);
+  const fullSize = new THREE.Vector3();
+  fullBox.getSize(fullSize);
+
+  const JUMP_EXTRA = 1.5;
+  const halfHeight = (fullSize.y + JUMP_EXTRA) / 2 * 1.15;
+  const dist = halfHeight / Math.tan((bonusCamera.fov / 2) * Math.PI / 180);
+  bonusCamera.position.set(0, fullSize.y * 0.45, dist);
+  bonusCamera.lookAt(0, fullSize.y * 0.45, 0);
+
+  // now apply the fixed display scale and re-center/floor at that size
+  model.scale.setScalar(BONUS_FIXED_SCALE);
   const box = new THREE.Box3().setFromObject(model);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -390,14 +405,11 @@ async function initBonusThree() {
   model.position.z -= center.z;
   model.position.y -= box.min.y;
 
-  const JUMP_EXTRA = 1.5;
-  const halfHeight = (size.y + JUMP_EXTRA) / 2 * 1.15;
-  const dist = halfHeight / Math.tan((bonusCamera.fov / 2) * Math.PI / 180);
-  bonusCamera.position.set(0, size.y * 0.45, dist);
-  bonusCamera.lookAt(0, size.y * 0.45, 0);
-
-  bonusTiltY = 0;
-  bonusUserScale = 1;
+  bonusModelBaseX = model.position.x;
+  bonusModelBaseY = model.position.y;
+  bonusModelSize = size;
+  bonusOffsetX = 0;
+  bonusOffsetY = 0;
   applyBonusTransform();
 
   bonusMixer = new THREE.AnimationMixer(model);
@@ -440,47 +452,52 @@ function playBonusMotion(name) {
   });
 }
 
-/* --- drag to tilt (+/-30deg) and pinch to resize --- */
+/* --- drag to reposition the (fixed-scale) model around the frame --- */
 const bonusPointers = new Map();
-let bonusDragStartX = null;
-let bonusDragStartTilt = 0;
-let bonusPinchStartDist = null;
-let bonusPinchStartScale = 1;
+let bonusDragLastX = null;
+let bonusDragLastY = null;
+
+function bonusDragBounds() {
+  const s = bonusModelSize || { x: 2, y: 4, z: 2 };
+  return { maxX: s.x * 1.2, minY: -s.y * 0.15, maxY: s.y * 0.9 };
+}
 
 function bonusPointerDown(e) {
-  bonusPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (bonusPointers.size === 1) {
-    bonusDragStartX = e.clientX;
-    bonusDragStartTilt = bonusTiltY;
-  } else if (bonusPointers.size === 2) {
-    const pts = [...bonusPointers.values()];
-    bonusPinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    bonusPinchStartScale = bonusUserScale;
+  if (bonusPointers.size === 0) {
+    bonusDragLastX = e.clientX;
+    bonusDragLastY = e.clientY;
   }
+  bonusPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 }
 
 function bonusPointerMove(e) {
   if (!bonusPointers.has(e.pointerId)) return;
   bonusPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (bonusPointers.size !== 1 || bonusDragLastX === null || !bonusModel) return;
 
-  if (bonusPointers.size === 1 && bonusDragStartX !== null) {
-    const dx = e.clientX - bonusDragStartX;
-    const deltaRad = (dx / window.innerWidth) * Math.PI;
-    bonusTiltY = Math.max(-BONUS_TILT_LIMIT, Math.min(BONUS_TILT_LIMIT, bonusDragStartTilt + deltaRad));
-    applyBonusTransform();
-  } else if (bonusPointers.size === 2 && bonusPinchStartDist !== null) {
-    const pts = [...bonusPointers.values()];
-    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const scale = bonusPinchStartScale * (dist / bonusPinchStartDist);
-    bonusUserScale = Math.max(BONUS_SCALE_MIN, Math.min(BONUS_SCALE_MAX, scale));
-    applyBonusTransform();
-  }
+  const el = document.getElementById("screen-bonus");
+  const depth = Math.abs(bonusCamera.position.z - bonusModel.position.z);
+  const vFov = (bonusCamera.fov * Math.PI) / 180;
+  const worldPerPixel = (2 * Math.tan(vFov / 2) * depth) / el.clientHeight;
+
+  const dxPixels = e.clientX - bonusDragLastX;
+  const dyPixels = e.clientY - bonusDragLastY;
+  bonusDragLastX = e.clientX;
+  bonusDragLastY = e.clientY;
+
+  const bounds = bonusDragBounds();
+  bonusOffsetX = Math.max(-bounds.maxX, Math.min(bounds.maxX, bonusOffsetX + dxPixels * worldPerPixel));
+  const newBaseRelativeY = bonusOffsetY - dyPixels * worldPerPixel; // screen-down = world-down
+  bonusOffsetY = Math.max(bounds.minY - bonusModelBaseY, Math.min(bounds.maxY - bonusModelBaseY, newBaseRelativeY));
+  applyBonusTransform();
 }
 
 function bonusPointerUp(e) {
   bonusPointers.delete(e.pointerId);
-  if (bonusPointers.size < 2) bonusPinchStartDist = null;
-  if (bonusPointers.size < 1) bonusDragStartX = null;
+  if (bonusPointers.size === 0) {
+    bonusDragLastX = null;
+    bonusDragLastY = null;
+  }
 }
 
 async function startBonusCamera() {
