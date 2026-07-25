@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>情報の偉人 ARスタンプラリー</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
 
@@ -21,18 +20,8 @@
 </div>
 
 <div id="screen-camera" class="screen">
-  <a-scene
-    id="ar-scene"
-    mindar-image="imageTargetSrc: ./assets/grace-hopper.mind; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;"
-    embedded
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-  >
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-    <a-entity id="gh-target" mindar-image-target="targetIndex: 0"></a-entity>
-  </a-scene>
+  <video id="camera-feed" autoplay playsinline muted></video>
+  <canvas id="qr-canvas" class="hidden"></canvas>
 
   <div id="camera-fallback" class="camera-fallback hidden">
     <p>カメラを起動できませんでした。<br>カメラの利用を許可してもう一度お試しください。</p>
@@ -46,7 +35,7 @@
   </div>
 
   <div class="camera-hud">
-    <p class="hud-text" id="hud-text">Grace Hopper のポスターに<br>スマホをかざしてね</p>
+    <p class="hud-text" id="hud-text">ポスターのQRコードを<br>枠の中に収めてね</p>
     <button id="btn-scan" class="btn-primary btn-scan hidden">📷 スタンプをGET！</button>
     <button id="btn-back-start" class="btn-text">はじめの画面に戻る</button>
   </div>

@@ -1,5 +1,5 @@
 const FIGURES = [
-  { id: "grace-hopper",     name: "Grace Hopper",      demo: true  },
+  { id: "grace-hopper",     name: "Grace Hopper",      demo: true, qrMatch: "gratefigures_01" },
   { id: "tim-berners-lee",  name: "Tim Berners-Lee",   demo: false },
   { id: "marvin-minsky",    name: "Marvin Minsky",     demo: false },
   { id: "alan-turing",      name: "Alan Turing",       demo: false },
@@ -29,64 +29,98 @@ function showScreen(id) {
   document.getElementById(id).classList.add("active");
 }
 
-/* ---------------- AR marker recognition (MindAR) ---------------- */
+/* ---------------- QR marker recognition ---------------- */
+/* The posters already carry a citation QR code (e.g. .../情報学の偉人/#gratefigures_01).
+   Each figure's QR encodes a unique #gratefigures_NN anchor, so we reuse it as the
+   AR recognition trigger instead of asking for a new dedicated code. */
 
-const arScene = document.getElementById("ar-scene");
+const video = document.getElementById("camera-feed");
+const qrCanvas = document.getElementById("qr-canvas");
+const qrCtx = qrCanvas.getContext("2d", { willReadFrequently: true });
 const hudText = document.getElementById("hud-text");
 const btnScan = document.getElementById("btn-scan");
 const cameraFallback = document.getElementById("camera-fallback");
 
-const HUD_DEFAULT = "Grace Hopper のポスターに\nスマホをかざしてね";
+const HUD_DEFAULT = "ポスターのQRコードを\n枠の中に収めてね";
 const HUD_FOUND = "認識しました！\nボタンをタップしてスタンプGET";
+
+const LOST_GRACE_MS = 800;
+const SCAN_INTERVAL_MS = 250;
+
+let mediaStream = null;
+let scanTimer = null;
+let recognizedFigure = null;
+let lastMatchAt = 0;
 
 function setHud(text) {
   hudText.innerHTML = text.replace(/\n/g, "<br>");
 }
 
-function getArSystem() {
-  return arScene.systems && arScene.systems["mindar-image-system"];
+function matchFigureFromQr(data) {
+  return FIGURES.find(fig => fig.qrMatch && data.includes(fig.qrMatch)) || null;
 }
 
-function startAR() {
-  cameraFallback.classList.add("hidden");
-  setHud(HUD_DEFAULT);
-  btnScan.classList.add("hidden");
-
-  const begin = () => {
-    const system = getArSystem();
-    if (system) system.start();
-  };
-
-  if (arScene.hasLoaded) {
-    begin();
+function setRecognized(figure) {
+  recognizedFigure = figure;
+  if (figure) {
+    setHud(HUD_FOUND);
+    btnScan.classList.remove("hidden");
   } else {
-    arScene.addEventListener("loaded", begin, { once: true });
+    setHud(HUD_DEFAULT);
+    btnScan.classList.add("hidden");
+  }
+}
+
+function scanFrame() {
+  if (!video.videoWidth) return;
+  qrCanvas.width = video.videoWidth;
+  qrCanvas.height = video.videoHeight;
+  qrCtx.drawImage(video, 0, 0, qrCanvas.width, qrCanvas.height);
+
+  const imageData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: "dontInvert",
+  });
+
+  const now = Date.now();
+  const matched = code && code.data ? matchFigureFromQr(code.data) : null;
+
+  if (matched) {
+    lastMatchAt = now;
+    if (!recognizedFigure || recognizedFigure.id !== matched.id) setRecognized(matched);
+  } else if (recognizedFigure && now - lastMatchAt > LOST_GRACE_MS) {
+    setRecognized(null);
+  }
+}
+
+async function startAR() {
+  cameraFallback.classList.add("hidden");
+  setRecognized(null);
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
+    video.srcObject = mediaStream;
+    scanTimer = setInterval(scanFrame, SCAN_INTERVAL_MS);
+  } catch (err) {
+    console.warn("camera unavailable", err);
+    cameraFallback.classList.remove("hidden");
   }
 }
 
 function stopAR() {
-  const system = getArSystem();
-  if (system) system.stop();
-  btnScan.classList.add("hidden");
+  if (scanTimer) {
+    clearInterval(scanTimer);
+    scanTimer = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  setRecognized(null);
 }
-
-arScene.addEventListener("arReady", () => {
-  console.log("MindAR ready");
-});
-
-arScene.addEventListener("arError", () => {
-  cameraFallback.classList.remove("hidden");
-});
-
-document.getElementById("gh-target").addEventListener("targetFound", () => {
-  setHud(HUD_FOUND);
-  btnScan.classList.remove("hidden");
-});
-
-document.getElementById("gh-target").addEventListener("targetLost", () => {
-  setHud(HUD_DEFAULT);
-  btnScan.classList.add("hidden");
-});
 
 /* ---------------- stamp passport ---------------- */
 
@@ -145,8 +179,9 @@ function playThunk() {
 }
 
 function triggerStamp() {
+  if (!recognizedFigure) return;
   const collected = getCollected();
-  const id = "grace-hopper";
+  const id = recognizedFigure.id;
   const alreadyHad = collected.includes(id);
   if (!alreadyHad) {
     collected.push(id);
