@@ -416,17 +416,24 @@ async function initBonusThree() {
 
   // flat/unlit-style shading: hides low-poly faceting that directional
   // lighting would otherwise reveal as visible shaded facets.
-  // NOTE: For GLTF MASK alpha mode, Three.js sets transparent=false + alphaTest=cutoff;
-  // MeshBasicMaterial handles this correctly without forcing transparent=true.
+  // - DoubleSide: prevents invisibility when normals face inward (common in stylized models)
+  // - emissiveMap fallback: some cartoon eye/feature materials use emissive instead of base map
+  // - opacity: explicitly set to avoid near-zero opacity from import defaults
   model.traverse(node => {
     if (!node.isMesh || !node.material) return;
-    const toBasic = mat => new THREE.MeshBasicMaterial({
-      map: mat.map || null,
-      color: mat.map ? 0xffffff : mat.color,
-      transparent: mat.transparent,
-      alphaTest: mat.alphaTest,
-      side: mat.side,
-    });
+    const toBasic = mat => {
+      // Use base color map; fall back to emissive map for elements like eyes that
+      // may rely on emissive contribution in the source PBR material
+      const texMap = mat.map || mat.emissiveMap || null;
+      return new THREE.MeshBasicMaterial({
+        map: texMap,
+        color: texMap ? 0xffffff : mat.color,
+        transparent: mat.transparent,
+        alphaTest: mat.alphaTest,
+        opacity: (mat.opacity !== undefined && mat.opacity !== null) ? mat.opacity : 1,
+        side: THREE.DoubleSide,   // render both faces regardless of normal direction
+      });
+    };
     node.material = Array.isArray(node.material)
       ? node.material.map(toBasic)
       : toBasic(node.material);
@@ -435,6 +442,28 @@ async function initBonusThree() {
       ? node.material.some(m => m.alphaTest > 0)
       : node.material.alphaTest > 0;
     if (hasAlphaTest) node.renderOrder = 1;
+  });
+
+  // Diagnostic: log material details for eye/nose objects to help debug visibility
+  ["\u5de6\u76ee", "\u53f3\u76ee", "\u9f3b"].forEach(eyeName => {
+    const eyeObj = findNodeFuzzy(model, eyeName);
+    if (!eyeObj) { console.warn(`"${eyeName}" not found after reparent`); return; }
+    eyeObj.traverse(child => {
+      if (!child.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((m, i) => {
+        console.log(
+          `${eyeName}[${i}]:`, m.type,
+          "color:", m.color?.getHexString(),
+          "alphaTest:", m.alphaTest,
+          "transparent:", m.transparent,
+          "opacity:", m.opacity,
+          "map:", !!m.map,
+          "side:", m.side,
+          "visible:", child.visible
+        );
+      });
+    });
   });
 
   // frame the camera for the model's full (unscaled) size -- this leaves
@@ -576,8 +605,9 @@ async function startBonusCamera() {
       audio: false,
     });
     video.srcObject = bonusStream;
-    // インカメラのときは左右を鏡像にして自然に見えるようにする
-    video.classList.toggle("mirrored", bonusFacingMode === "user");
+    // インカメラのときは左右を鏡像にして自然に見えるようにする。
+    // classListはブラウザによって町切れるため style 直接指定の方が確実。
+    video.style.transform = bonusFacingMode === "user" ? "scaleX(-1)" : "none";
   } catch (err) {
     console.warn("bonus camera unavailable", err);
     fallback.classList.remove("hidden");
