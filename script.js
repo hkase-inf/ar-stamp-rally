@@ -388,12 +388,6 @@ async function initBonusThree() {
   // bone's pose animation -- re-parent them onto the actual joint node
   // (.attach keeps their current world position/rotation while doing so)
 
-  // Debug: dump all object names to help diagnose reparenting issues
-  console.log("=== GLB object names ===");
-  model.traverse(node => {
-    if (node.name) console.log(`  [${node.type}] "${node.name}"`);
-  });
-
   // Fuzzy-match helper: NFC-normalize both sides to handle encoding differences
   // that can occur when Japanese names are stored in GLB files
   function findNodeFuzzy(root, name) {
@@ -410,7 +404,6 @@ async function initBonusThree() {
   Object.entries(REPARENT_MAP).forEach(([objName, boneName]) => {
     const obj = findNodeFuzzy(model, objName);
     const bone = findNodeFuzzy(model, boneName);
-    console.log(`Reparent "${objName}" → "${boneName}": obj=${!!obj}, bone=${!!bone}`);
     if (obj && bone && obj.parent !== bone) bone.attach(obj);
   });
 
@@ -444,27 +437,28 @@ async function initBonusThree() {
     if (hasAlphaTest) node.renderOrder = 1;
   });
 
-  // Diagnostic: log material details for eye/nose objects to help debug visibility
-  ["\u5de6\u76ee", "\u53f3\u76ee", "\u9f3b"].forEach(eyeName => {
-    const eyeObj = findNodeFuzzy(model, eyeName);
-    if (!eyeObj) { console.warn(`"${eyeName}" not found after reparent`); return; }
-    eyeObj.traverse(child => {
-      if (!child.isMesh) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((m, i) => {
-        console.log(
-          `${eyeName}[${i}]:`, m.type,
-          "color:", m.color?.getHexString(),
-          "alphaTest:", m.alphaTest,
-          "transparent:", m.transparent,
-          "opacity:", m.opacity,
-          "map:", !!m.map,
-          "side:", m.side,
-          "visible:", child.visible
-        );
-      });
+  // Face-detail objects (eyes, nose, hat, accessories) are flat meshes placed ON
+  // the surface of the body SkinnedMesh. Because they share the same depth as
+  // the face geometry, the body wins the depth test and hides them.
+  // This must run AFTER the model.traverse() material conversion above, so the
+  // settings are applied to the final MeshBasicMaterial instances, not the originals.
+  const FACE_DETAIL_NAMES = ["右目", "左目", "鼻", "帽子", "揺れもの"];
+  FACE_DETAIL_NAMES.forEach(name => {
+    const obj = findNodeFuzzy(model, name);
+    if (!obj) return;
+    obj.traverse(child => {
+      child.renderOrder = 999;
+      if (!child.isMesh || !child.material) return;
+      const applyOverDepth = m => {
+        m.depthTest = false;   // ignore depth buffer → never hidden by body mesh
+        m.depthWrite = false;  // don't write depth, so other objects are unaffected
+      };
+      Array.isArray(child.material)
+        ? child.material.forEach(applyOverDepth)
+        : applyOverDepth(child.material);
     });
   });
+
 
   // frame the camera for the model's full (unscaled) size -- this leaves
   // visible room around the smaller, fixed-scale model for repositioning
