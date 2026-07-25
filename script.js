@@ -387,30 +387,54 @@ async function initBonusThree() {
   // these props were exported as static children instead of following their
   // bone's pose animation -- re-parent them onto the actual joint node
   // (.attach keeps their current world position/rotation while doing so)
+
+  // Debug: dump all object names to help diagnose reparenting issues
+  console.log("=== GLB object names ===");
+  model.traverse(node => {
+    if (node.name) console.log(`  [${node.type}] "${node.name}"`);
+  });
+
+  // Fuzzy-match helper: NFC-normalize both sides to handle encoding differences
+  // that can occur when Japanese names are stored in GLB files
+  function findNodeFuzzy(root, name) {
+    const normName = name.normalize("NFC");
+    let found = null;
+    root.traverse(node => {
+      if (found) return;
+      if (node.name.normalize("NFC") === normName) found = node;
+    });
+    return found;
+  }
+
   const REPARENT_MAP = { "帽子": "Head", "右目": "Head", "左目": "Head", "鼻": "Head", "揺れもの": "Head", "足": "Hip" };
   Object.entries(REPARENT_MAP).forEach(([objName, boneName]) => {
-    const obj = model.getObjectByName(objName);
-    const bone = model.getObjectByName(boneName);
+    const obj = findNodeFuzzy(model, objName);
+    const bone = findNodeFuzzy(model, boneName);
+    console.log(`Reparent "${objName}" → "${boneName}": obj=${!!obj}, bone=${!!bone}`);
     if (obj && bone && obj.parent !== bone) bone.attach(obj);
   });
 
   // flat/unlit-style shading: hides low-poly faceting that directional
-  // lighting would otherwise reveal as visible shaded facets
+  // lighting would otherwise reveal as visible shaded facets.
+  // NOTE: For GLTF MASK alpha mode, Three.js sets transparent=false + alphaTest=cutoff;
+  // MeshBasicMaterial handles this correctly without forcing transparent=true.
   model.traverse(node => {
     if (!node.isMesh || !node.material) return;
-    const toBasic = mat => {
-      const basic = new THREE.MeshBasicMaterial({
-        map: mat.map || null,
-        color: mat.map ? 0xffffff : mat.color,
-        transparent: mat.transparent || (mat.alphaTest > 0),
-        alphaTest: mat.alphaTest,
-        side: mat.side,
-        depthWrite: mat.alphaTest <= 0,
-      });
-      return basic;
-    };
-    node.material = Array.isArray(node.material) ? node.material.map(toBasic) : toBasic(node.material);
-    node.renderOrder = node.material.alphaTest > 0 ? 1 : 0;
+    const toBasic = mat => new THREE.MeshBasicMaterial({
+      map: mat.map || null,
+      color: mat.map ? 0xffffff : mat.color,
+      transparent: mat.transparent,
+      alphaTest: mat.alphaTest,
+      side: mat.side,
+    });
+    node.material = Array.isArray(node.material)
+      ? node.material.map(toBasic)
+      : toBasic(node.material);
+    // Alpha-test cutout meshes (eyes, nose, etc.) must render after opaque geometry
+    const hasAlphaTest = Array.isArray(node.material)
+      ? node.material.some(m => m.alphaTest > 0)
+      : node.material.alphaTest > 0;
+    if (hasAlphaTest) node.renderOrder = 1;
   });
 
   // frame the camera for the model's full (unscaled) size -- this leaves
@@ -552,6 +576,8 @@ async function startBonusCamera() {
       audio: false,
     });
     video.srcObject = bonusStream;
+    // インカメラのときは左右を鏡像にして自然に見えるようにする
+    video.classList.toggle("mirrored", bonusFacingMode === "user");
   } catch (err) {
     console.warn("bonus camera unavailable", err);
     fallback.classList.remove("hidden");
@@ -632,7 +658,17 @@ function captureBonusPhoto() {
   const dh = vh * scale;
   const dx = (w - dw) / 2;
   const dy = (h - dh) / 2;
-  ctx.drawImage(video, dx, dy, dw, dh);
+
+  if (bonusFacingMode === "user") {
+    // インカメラ：プレビューと同じ鏡像で合成する
+    ctx.save();
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, dx, dy, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.drawImage(video, dx, dy, dw, dh);
+  }
 
   // Three.js キャンバスをそのまま全面に重ねる（こちらはすでに画面比）
   ctx.drawImage(threeCanvas, 0, 0, w, h);

@@ -405,6 +405,10 @@ html, body {
   object-fit: cover;
   z-index: 1;
 }
+/* インカメラ時は左右を反転して鏡のように見せる */
+#bonus-camera-feed.mirrored {
+  transform: scaleX(-1);
+}
 
 #bonus-three-canvas {
   position: absolute;
