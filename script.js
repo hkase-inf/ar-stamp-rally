@@ -29,32 +29,64 @@ function showScreen(id) {
   document.getElementById(id).classList.add("active");
 }
 
-/* ---------------- camera ---------------- */
+/* ---------------- AR marker recognition (MindAR) ---------------- */
 
-let mediaStream = null;
+const arScene = document.getElementById("ar-scene");
+const hudText = document.getElementById("hud-text");
+const btnScan = document.getElementById("btn-scan");
+const cameraFallback = document.getElementById("camera-fallback");
 
-async function startCamera() {
-  const video = document.getElementById("camera-feed");
-  const fallback = document.getElementById("camera-fallback");
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false,
-    });
-    video.srcObject = mediaStream;
-    fallback.classList.add("hidden");
-  } catch (err) {
-    console.warn("camera unavailable, using fallback", err);
-    fallback.classList.remove("hidden");
+const HUD_DEFAULT = "Grace Hopper のポスターに\nスマホをかざしてね";
+const HUD_FOUND = "認識しました！\nボタンをタップしてスタンプGET";
+
+function setHud(text) {
+  hudText.innerHTML = text.replace(/\n/g, "<br>");
+}
+
+function getArSystem() {
+  return arScene.systems && arScene.systems["mindar-image-system"];
+}
+
+function startAR() {
+  cameraFallback.classList.add("hidden");
+  setHud(HUD_DEFAULT);
+  btnScan.classList.add("hidden");
+
+  const begin = () => {
+    const system = getArSystem();
+    if (system) system.start();
+  };
+
+  if (arScene.hasLoaded) {
+    begin();
+  } else {
+    arScene.addEventListener("loaded", begin, { once: true });
   }
 }
 
-function stopCamera() {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-  }
+function stopAR() {
+  const system = getArSystem();
+  if (system) system.stop();
+  btnScan.classList.add("hidden");
 }
+
+arScene.addEventListener("arReady", () => {
+  console.log("MindAR ready");
+});
+
+arScene.addEventListener("arError", () => {
+  cameraFallback.classList.remove("hidden");
+});
+
+document.getElementById("gh-target").addEventListener("targetFound", () => {
+  setHud(HUD_FOUND);
+  btnScan.classList.remove("hidden");
+});
+
+document.getElementById("gh-target").addEventListener("targetLost", () => {
+  setHud(HUD_DEFAULT);
+  btnScan.classList.add("hidden");
+});
 
 /* ---------------- stamp passport ---------------- */
 
@@ -138,11 +170,11 @@ function triggerStamp() {
 
 document.getElementById("btn-open-camera").addEventListener("click", () => {
   showScreen("screen-camera");
-  startCamera();
+  startAR();
 });
 
 document.getElementById("btn-back-start").addEventListener("click", () => {
-  stopCamera();
+  stopAR();
   showScreen("screen-start");
 });
 
