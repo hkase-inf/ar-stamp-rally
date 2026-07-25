@@ -382,9 +382,16 @@ html, body {
 
 .btn-bonus {
   width: 100%;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   background: linear-gradient(135deg, #f6b93b, var(--accent));
   box-shadow: 0 8px 20px rgba(246,185,59,.35);
+}
+
+.bonus-enter-hint {
+  font-size: 13px;
+  color: #6b6355;
+  margin: 0 0 12px;
+  line-height: 1.5;
 }
 
 /* ---------- bonus screen ---------- */

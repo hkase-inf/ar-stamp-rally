@@ -11,11 +11,26 @@ bpy.ops.wm.open_mainfile(filepath=MASTER_BLEND)
 
 arm_obj = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
 
+# reset to true rest pose BEFORE any bone-parenting: the file may still be
+# sitting at a previous run's Wave-pose frame 1 (arm already raised), which
+# would bake that offset into keep_transform's parent_inverse for small
+# objects like the eyes/nose (likely why they ended up invisible/misplaced)
+arm_obj.animation_data_clear()
+bpy.context.view_layer.objects.active = arm_obj
+bpy.ops.object.mode_set(mode="POSE")
+for pb in arm_obj.pose.bones:
+    pb.location = (0, 0, 0)
+    pb.rotation_quaternion = (1, 0, 0, 0)
+    pb.rotation_euler = (0, 0, 0)
+    pb.scale = (1, 1, 1)
+bpy.ops.object.mode_set(mode="OBJECT")
+bpy.context.view_layer.update()
+
 
 def bone_parent(obj_name, bone_name):
+    # always re-run (even if already bone-parented) so the parent_inverse is
+    # recomputed from the current (now guaranteed rest-pose) state
     obj = bpy.data.objects[obj_name]
-    if obj.parent_type == "BONE" and obj.parent_bone == bone_name:
-        return
     arm_obj.data.bones.active = arm_obj.data.bones[bone_name]
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)

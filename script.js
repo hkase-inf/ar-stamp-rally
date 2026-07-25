@@ -221,7 +221,9 @@ function renderPassport(justFilledId) {
   });
 
   document.getElementById("stamp-count").textContent = collected.length;
-  document.getElementById("btn-bonus-enter").classList.toggle("hidden", collected.length < FIGURES.length);
+  const showBonus = collected.length >= FIGURES.length;
+  document.getElementById("btn-bonus-enter").classList.toggle("hidden", !showBonus);
+  document.getElementById("bonus-enter-hint").classList.toggle("hidden", !showBonus);
 }
 
 /* ---------------- little synth "thunk" sound ---------------- */
@@ -396,14 +398,19 @@ async function initBonusThree() {
   // lighting would otherwise reveal as visible shaded facets
   model.traverse(node => {
     if (!node.isMesh || !node.material) return;
-    const toBasic = mat => new THREE.MeshBasicMaterial({
-      map: mat.map || null,
-      color: mat.map ? 0xffffff : mat.color,
-      transparent: mat.transparent,
-      alphaTest: mat.alphaTest,
-      side: mat.side,
-    });
+    const toBasic = mat => {
+      const basic = new THREE.MeshBasicMaterial({
+        map: mat.map || null,
+        color: mat.map ? 0xffffff : mat.color,
+        transparent: mat.transparent || (mat.alphaTest > 0),
+        alphaTest: mat.alphaTest,
+        side: mat.side,
+        depthWrite: mat.alphaTest <= 0,
+      });
+      return basic;
+    };
     node.material = Array.isArray(node.material) ? node.material.map(toBasic) : toBasic(node.material);
+    node.renderOrder = node.material.alphaTest > 0 ? 1 : 0;
   });
 
   // frame the camera for the model's full (unscaled) size -- this leaves
@@ -605,12 +612,29 @@ function captureBonusPhoto() {
   const video = document.getElementById("bonus-camera-feed");
   const threeCanvas = document.getElementById("bonus-three-canvas");
   const out = document.getElementById("bonus-capture-canvas");
-  const w = video.videoWidth || threeCanvas.width;
-  const h = video.videoHeight || threeCanvas.height;
+
+  // 画面の表示サイズ（CSS pixels × devicePixelRatio）を基準にする。
+  // カメラ映像の解像度を使うと、画面アスペクト比と食い違い
+  // しずっぴーが引き伸ばされて見える問題が起きるため。
+  const screenEl = document.getElementById("screen-bonus");
+  const dpr = window.devicePixelRatio || 1;
+  const w = screenEl.clientWidth * dpr;
+  const h = screenEl.clientHeight * dpr;
   out.width = w;
   out.height = h;
   const ctx = out.getContext("2d");
-  ctx.drawImage(video, 0, 0, w, h);
+
+  // カメラ映像を画面いっぱいに (object-fit: cover と同じ挙動) 描画
+  const vw = video.videoWidth || 1;
+  const vh = video.videoHeight || 1;
+  const scale = Math.max(w / vw, h / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  const dx = (w - dw) / 2;
+  const dy = (h - dh) / 2;
+  ctx.drawImage(video, dx, dy, dw, dh);
+
+  // Three.js キャンバスをそのまま全面に重ねる（こちらはすでに画面比）
   ctx.drawImage(threeCanvas, 0, 0, w, h);
 
   out.toBlob(blob => {
