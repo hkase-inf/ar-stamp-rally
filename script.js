@@ -303,7 +303,7 @@ let bonusActiveAction = null;
 // the model faces the camera at a fixed small scale (its low-poly mesh
 // looks rough up close); drag repositions it around the frame instead
 const BONUS_FRONT_ROTATION_Y = -Math.PI / 2; // rotates the model's front to face the camera
-const BONUS_FIXED_SCALE = 0.6;
+const BONUS_FIXED_SCALE = 0.4;
 let bonusModelSize = null; // THREE.Vector3, set at load time, used to clamp drag bounds
 let bonusModelBaseX = 0;
 let bonusModelBaseY = 0;
@@ -330,7 +330,7 @@ async function loadThreeModules() {
 }
 
 function setupBonusScene(THREE, canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -381,6 +381,30 @@ async function initBonusThree() {
   model.rotation.y = BONUS_FRONT_ROTATION_Y; // face the model's front toward the camera
   bonusScene.add(model);
   bonusModel = model;
+
+  // these props were exported as static children instead of following their
+  // bone's pose animation -- re-parent them onto the actual joint node
+  // (.attach keeps their current world position/rotation while doing so)
+  const REPARENT_MAP = { "帽子": "Head", "右目": "Head", "左目": "Head", "鼻": "Head", "揺れもの": "Head", "足": "Hip" };
+  Object.entries(REPARENT_MAP).forEach(([objName, boneName]) => {
+    const obj = model.getObjectByName(objName);
+    const bone = model.getObjectByName(boneName);
+    if (obj && bone && obj.parent !== bone) bone.attach(obj);
+  });
+
+  // flat/unlit-style shading: hides low-poly faceting that directional
+  // lighting would otherwise reveal as visible shaded facets
+  model.traverse(node => {
+    if (!node.isMesh || !node.material) return;
+    const toBasic = mat => new THREE.MeshBasicMaterial({
+      map: mat.map || null,
+      color: mat.map ? 0xffffff : mat.color,
+      transparent: mat.transparent,
+      alphaTest: mat.alphaTest,
+      side: mat.side,
+    });
+    node.material = Array.isArray(node.material) ? node.material.map(toBasic) : toBasic(node.material);
+  });
 
   // frame the camera for the model's full (unscaled) size -- this leaves
   // visible room around the smaller, fixed-scale model for repositioning
@@ -458,8 +482,19 @@ let bonusDragLastX = null;
 let bonusDragLastY = null;
 
 function bonusDragBounds() {
-  const s = bonusModelSize || { x: 2, y: 4, z: 2 };
-  return { maxX: s.x * 1.2, minY: -s.y * 0.15, maxY: s.y * 0.9 };
+  // base the draggable range on what's actually visible in the camera
+  // frustum at the model's depth, so landscape (much wider) gets a wider
+  // range instead of being limited by the model's own fixed size
+  const depth = Math.abs(bonusCamera.position.z - (bonusModel ? bonusModel.position.z : 0));
+  const vFov = (bonusCamera.fov * Math.PI) / 180;
+  const visibleHeight = 2 * Math.tan(vFov / 2) * depth;
+  const visibleWidth = visibleHeight * bonusCamera.aspect;
+  const s = bonusModelSize || { y: 4 };
+  return {
+    maxX: (visibleWidth / 2) * 0.42,
+    minY: -s.y * 0.15,
+    maxY: visibleHeight * 0.42,
+  };
 }
 
 function bonusPointerDown(e) {

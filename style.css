@@ -492,20 +492,27 @@ html, body {
 }
 
 @media (orientation: landscape) {
+  /* keep motion buttons at the top and the capture bar at the bottom so
+     they never overlap; just tighten sizing since height is limited */
   .bonus-motions {
-    top: auto;
-    bottom: calc(14px + env(safe-area-inset-bottom));
-    padding: 0 140px;
+    padding: 0 60px 0 12px;
+  }
+  .btn-motion {
+    font-size: 11px;
+    padding: 6px 10px;
   }
   .bonus-hud {
-    padding: 10px 130px calc(14px + env(safe-area-inset-bottom));
+    padding: 8px 16px calc(10px + env(safe-area-inset-bottom));
   }
-  .bonus-hud .btn-scan { max-width: 220px; }
+  .bonus-hud .btn-scan {
+    max-width: 240px;
+    padding: 10px 20px;
+  }
   .btn-icon {
-    top: calc(14px + env(safe-area-inset-top));
-    right: 14px;
-    width: 40px;
-    height: 40px;
+    top: calc(12px + env(safe-area-inset-top));
+    right: 12px;
+    width: 38px;
+    height: 38px;
   }
 }
 

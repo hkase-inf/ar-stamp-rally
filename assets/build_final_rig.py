@@ -123,7 +123,7 @@ for f in range(1, WAVE_FRAMES + 1):
     t = (f - 1) / WAVE_FRAMES
     swing = 25 + 15 * math.sin(2 * math.pi * WAVE_CYCLES * t)
     keyframe_euler("Upper Arm_R", f, x=75)
-    keyframe_euler("Lower Arm_R", f, x=-30, z=swing)
+    keyframe_euler("Lower Arm_R", f, x=-30, y=90, z=swing)
     keyframe_euler("Upper Arm_L", f, x=-70)
     keyframe_euler("Lower Arm_L", f, x=15)
     bounce = 0.12 * (0.5 - 0.5 * math.cos(2 * math.pi * 2 * t))
