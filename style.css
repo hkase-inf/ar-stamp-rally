@@ -405,7 +405,7 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 2;
-  pointer-events: none;
+  touch-action: none; /* this canvas owns drag-to-tilt / pinch-to-resize */
 }
 
 .bonus-loading {
@@ -459,6 +459,54 @@ html, body {
   font-size: 20px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+.bonus-motions {
+  position: absolute;
+  top: calc(18px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 70px 0 18px; /* leave room for the flip button on the right */
+  pointer-events: none;
+}
+.btn-motion {
+  pointer-events: auto;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(0,0,0,.45);
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+.btn-motion.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (orientation: landscape) {
+  .bonus-motions {
+    top: auto;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    padding: 0 140px;
+  }
+  .bonus-hud {
+    padding: 10px 130px calc(14px + env(safe-area-inset-bottom));
+  }
+  .bonus-hud .btn-scan { max-width: 220px; }
+  .btn-icon {
+    top: calc(14px + env(safe-area-inset-top));
+    right: 14px;
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .bonus-result {

@@ -40,16 +40,8 @@ print("=== after decimate ===")
 total = sum(len(o.data.polygons) for o in bpy.data.objects if o.type == "MESH")
 print("total polys:", total)
 
-# --- fix the nose material: its source texture ("hana") is empty/broken
-# (0x0, unrecoverable -- the original file is missing even from the source
-# .blend), so give it a deliberate flat pink base color instead ---
-nose_mat = bpy.data.materials.get("マテリアル.005")
-if nose_mat and nose_mat.use_nodes:
-    for node in nose_mat.node_tree.nodes:
-        if node.type == "BSDF_PRINCIPLED":
-            node.inputs["Base Color"].default_value = (0.97, 0.55, 0.75, 1.0)
-        if node.type == "TEX_IMAGE":
-            nose_mat.node_tree.nodes.remove(node)
+# (body texture + nose color are already fixed in the source .blend by
+# build_final_rig.py -- no per-export material patching needed here anymore)
 
 # --- 2. dedupe + resize textures ---
 by_path = {}

@@ -294,8 +294,25 @@ function triggerStamp() {
 
 let threeModules = null; // cached after first dynamic import
 let bonusStream = null;
-let bonusFacingMode = "user";
+let bonusFacingMode = "environment"; // default to the rear camera; flip button switches to selfie
 let bonusRenderer, bonusScene, bonusCamera, bonusMixer, bonusClock, bonusRAF;
+let bonusModel = null;
+let bonusClips = {};
+let bonusActiveAction = null;
+
+// front-facing tilt (drag, +/-30deg) and user scale (pinch)
+const BONUS_FRONT_ROTATION_Y = Math.PI / 2; // rotates the model's front to face the camera
+const BONUS_TILT_LIMIT = Math.PI / 6; // 30 degrees
+const BONUS_SCALE_MIN = 0.5;
+const BONUS_SCALE_MAX = 2.0;
+let bonusTiltY = 0;
+let bonusUserScale = 1;
+
+function applyBonusTransform() {
+  if (!bonusModel) return;
+  bonusModel.rotation.y = BONUS_FRONT_ROTATION_Y + bonusTiltY;
+  bonusModel.scale.setScalar(bonusUserScale);
+}
 
 async function loadThreeModules() {
   if (threeModules) return threeModules;
@@ -357,10 +374,13 @@ async function initBonusThree() {
   });
 
   const model = gltf.scene;
+  model.rotation.y = BONUS_FRONT_ROTATION_Y; // face the model's front toward the camera
   bonusScene.add(model);
+  bonusModel = model;
 
   // auto-frame: center the model horizontally, sit it on the "floor" (y=0),
   // and place the camera far enough back that the full height fits in view
+  // (with extra headroom for the Jump motion's bounce)
   const box = new THREE.Box3().setFromObject(model);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -370,14 +390,20 @@ async function initBonusThree() {
   model.position.z -= center.z;
   model.position.y -= box.min.y;
 
-  const halfHeight = (size.y / 2) * 1.35; // margin so nothing crops
+  const JUMP_EXTRA = 1.5;
+  const halfHeight = (size.y + JUMP_EXTRA) / 2 * 1.15;
   const dist = halfHeight / Math.tan((bonusCamera.fov / 2) * Math.PI / 180);
-  bonusCamera.position.set(0, size.y * 0.5, dist);
-  bonusCamera.lookAt(0, size.y * 0.5, 0);
+  bonusCamera.position.set(0, size.y * 0.45, dist);
+  bonusCamera.lookAt(0, size.y * 0.45, 0);
+
+  bonusTiltY = 0;
+  bonusUserScale = 1;
+  applyBonusTransform();
 
   bonusMixer = new THREE.AnimationMixer(model);
-  const clip = gltf.animations.find(a => a.name === "Wave") || gltf.animations[0];
-  if (clip) bonusMixer.clipAction(clip).play();
+  bonusClips = {};
+  gltf.animations.forEach(clip => { bonusClips[clip.name] = clip; });
+  playBonusMotion("Wave");
 
   bonusClock = new THREE.Clock();
   startBonusRenderLoop();
@@ -397,6 +423,64 @@ function startBonusRenderLoop() {
 function stopBonusRenderLoop() {
   if (bonusRAF) cancelAnimationFrame(bonusRAF);
   bonusRAF = null;
+}
+
+function playBonusMotion(name) {
+  const clip = bonusClips[name];
+  if (!clip || !bonusMixer) return;
+  const nextAction = bonusMixer.clipAction(clip);
+  if (bonusActiveAction && bonusActiveAction !== nextAction) {
+    bonusActiveAction.fadeOut(0.3);
+  }
+  nextAction.reset().fadeIn(0.3).play();
+  bonusActiveAction = nextAction;
+
+  document.querySelectorAll(".btn-motion").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.motion === name);
+  });
+}
+
+/* --- drag to tilt (+/-30deg) and pinch to resize --- */
+const bonusPointers = new Map();
+let bonusDragStartX = null;
+let bonusDragStartTilt = 0;
+let bonusPinchStartDist = null;
+let bonusPinchStartScale = 1;
+
+function bonusPointerDown(e) {
+  bonusPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (bonusPointers.size === 1) {
+    bonusDragStartX = e.clientX;
+    bonusDragStartTilt = bonusTiltY;
+  } else if (bonusPointers.size === 2) {
+    const pts = [...bonusPointers.values()];
+    bonusPinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    bonusPinchStartScale = bonusUserScale;
+  }
+}
+
+function bonusPointerMove(e) {
+  if (!bonusPointers.has(e.pointerId)) return;
+  bonusPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (bonusPointers.size === 1 && bonusDragStartX !== null) {
+    const dx = e.clientX - bonusDragStartX;
+    const deltaRad = (dx / window.innerWidth) * Math.PI;
+    bonusTiltY = Math.max(-BONUS_TILT_LIMIT, Math.min(BONUS_TILT_LIMIT, bonusDragStartTilt + deltaRad));
+    applyBonusTransform();
+  } else if (bonusPointers.size === 2 && bonusPinchStartDist !== null) {
+    const pts = [...bonusPointers.values()];
+    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const scale = bonusPinchStartScale * (dist / bonusPinchStartDist);
+    bonusUserScale = Math.max(BONUS_SCALE_MIN, Math.min(BONUS_SCALE_MAX, scale));
+    applyBonusTransform();
+  }
+}
+
+function bonusPointerUp(e) {
+  bonusPointers.delete(e.pointerId);
+  if (bonusPointers.size < 2) bonusPinchStartDist = null;
+  if (bonusPointers.size < 1) bonusDragStartX = null;
 }
 
 async function startBonusCamera() {
@@ -422,6 +506,12 @@ function stopBonusCamera() {
   }
 }
 
+function onBonusOrientationChange() {
+  // mobile browsers often report stale inner dimensions right at the event
+  setTimeout(resizeBonusRenderer, 50);
+  setTimeout(resizeBonusRenderer, 300);
+}
+
 async function enterBonusStage() {
   showScreen("screen-bonus");
   document.getElementById("bonus-result").classList.add("hidden");
@@ -437,6 +527,7 @@ async function enterBonusStage() {
       startBonusRenderLoop();
     }
     window.addEventListener("resize", resizeBonusRenderer);
+    window.addEventListener("orientationchange", onBonusOrientationChange);
     document.getElementById("btn-bonus-capture").classList.remove("hidden");
   } catch (err) {
     console.error("failed to load bonus stage 3D content", err);
@@ -448,6 +539,7 @@ function exitBonusStage() {
   stopBonusCamera();
   stopBonusRenderLoop();
   window.removeEventListener("resize", resizeBonusRenderer);
+  window.removeEventListener("orientationchange", onBonusOrientationChange);
   showScreen("screen-stamp");
 }
 
@@ -530,6 +622,17 @@ document.getElementById("btn-bonus-retake").addEventListener("click", () => {
   if (img.dataset.blobUrl) URL.revokeObjectURL(img.dataset.blobUrl);
   document.getElementById("bonus-result").classList.add("hidden");
 });
+
+document.querySelectorAll(".btn-motion").forEach(btn => {
+  btn.addEventListener("click", () => playBonusMotion(btn.dataset.motion));
+});
+
+const bonusGestureSurface = document.getElementById("bonus-three-canvas");
+bonusGestureSurface.addEventListener("pointerdown", bonusPointerDown);
+bonusGestureSurface.addEventListener("pointermove", bonusPointerMove);
+bonusGestureSurface.addEventListener("pointerup", bonusPointerUp);
+bonusGestureSurface.addEventListener("pointercancel", bonusPointerUp);
+bonusGestureSurface.addEventListener("pointerleave", bonusPointerUp);
 
 // debug-only shortcut for testing: fills every stamp and jumps straight to
 // the bonus stage so it doesn't need to be reached by scanning all 9 QR codes
