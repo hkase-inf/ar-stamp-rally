@@ -130,6 +130,22 @@ def linearize(action):
 
 arm_obj.animation_data_create()
 
+# --- Rest: static neutral pose, both arms down. This is the default state
+# when the bonus stage loads / when the motion toggle is switched off. Two
+# identical frames so it's a valid (non-zero-length) clip but reads as
+# perfectly still. ---
+REST_FRAMES = 2
+rest_action = new_action("Rest")
+for f in range(1, REST_FRAMES + 1):
+    keyframe_euler("Upper Arm_R", f, x=-70)
+    keyframe_euler("Lower Arm_R", f, x=15)
+    keyframe_euler("Upper Arm_L", f, x=-70)
+    keyframe_euler("Lower Arm_L", f, x=15)
+    keyframe_loc("Hip", f, y=0)
+    keyframe_euler("Spine", f, y=0)
+    keyframe_euler("Chest", f, y=0)
+linearize(rest_action)
+
 # --- Wave: friendly wave + gentle idle bounce ---
 WAVE_FRAMES = 60
 WAVE_CYCLES = 3
@@ -163,25 +179,39 @@ for f in range(1, JUMP_FRAMES + 1):
     keyframe_euler("Lower Arm_L", f, x=-15)
 linearize(jump_action)
 
-# --- Spin: full 360 degree turn around the vertical axis, arms held out ---
-SPIN_FRAMES = 60
-spin_action = new_action("Spin")
-for f in range(1, SPIN_FRAMES + 1):
-    t = (f - 1) / SPIN_FRAMES
-    keyframe_euler("Hip", f, y=360 * t)
-    bounce = 0.08 * (0.5 - 0.5 * math.cos(2 * math.pi * 2 * t))
+# --- Walk: bouncy walk-in-place loop, front-facing throughout (the "足"
+# mesh is one rigid piece, not per-leg skinned, so there's no real leg
+# articulation to animate -- this fakes a walking feel with a footstep-like
+# double-bounce, a side-to-side waddle, and opposite-phase arm swing) ---
+WALK_FRAMES = 32
+WALK_STEPS = 2  # steps per loop
+walk_action = new_action("Walk")
+for f in range(1, WALK_FRAMES + 1):
+    t = (f - 1) / WALK_FRAMES
+    step_phase = 2 * math.pi * WALK_STEPS * t
+    bounce = 0.11 * abs(math.sin(step_phase))
+    waddle = 7 * math.sin(step_phase)
+    arm_swing = 20 * math.sin(step_phase)
     keyframe_loc("Hip", f, y=bounce)
-    keyframe_euler("Upper Arm_R", f, x=22)
-    keyframe_euler("Lower Arm_R", f, x=-8)
-    keyframe_euler("Upper Arm_L", f, x=22)
-    keyframe_euler("Lower Arm_L", f, x=-8)
-linearize(spin_action)
+    keyframe_euler("Hip", f, z=waddle)
+    keyframe_euler("Upper Arm_R", f, x=-70, z=arm_swing)
+    keyframe_euler("Lower Arm_R", f, x=15)
+    keyframe_euler("Upper Arm_L", f, x=-70, z=-arm_swing)
+    keyframe_euler("Lower Arm_L", f, x=15)
+linearize(walk_action)
 
 # restore Wave as the assigned/default action and neutral display frame
 arm_obj.animation_data.action = wave_action
 bpy.context.scene.frame_start = 1
 bpy.context.scene.frame_end = WAVE_FRAMES
 bpy.context.scene.frame_set(1)
+
+# drop any orphaned action from earlier iterations (e.g. the old "Spin",
+# now replaced by "Walk") so it doesn't linger in the file / get exported
+KEEP_ACTIONS = {"Rest", "Wave", "Jump", "Walk"}
+for action in list(bpy.data.actions):
+    if action.name not in KEEP_ACTIONS:
+        bpy.data.actions.remove(action)
 
 print("actions:", [a.name for a in bpy.data.actions])
 

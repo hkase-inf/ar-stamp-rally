@@ -493,7 +493,12 @@ async function initBonusThree() {
   bonusMixer = new THREE.AnimationMixer(model);
   bonusClips = {};
   gltf.animations.forEach(clip => { bonusClips[clip.name] = clip; });
-  playBonusMotion("Wave");
+
+  // start at rest (arms down, no motion) -- the toggle switch turns on
+  // whichever motion is selected (Wave by default once switched on)
+  bonusSelectedMotion = "Wave";
+  document.getElementById("motion-toggle-input").checked = false;
+  playBonusMotion("Rest");
 
   bonusClock = new THREE.Clock();
   startBonusRenderLoop();
@@ -515,6 +520,8 @@ function stopBonusRenderLoop() {
   bonusRAF = null;
 }
 
+let bonusSelectedMotion = "Wave"; // remembered choice, resumed when the toggle is switched back on
+
 function playBonusMotion(name) {
   const clip = bonusClips[name];
   if (!clip || !bonusMixer) return;
@@ -525,9 +532,15 @@ function playBonusMotion(name) {
   nextAction.reset().fadeIn(0.3).play();
   bonusActiveAction = nextAction;
 
+  // "Rest" isn't a selectable button -- leave all motion buttons unhighlighted
   document.querySelectorAll(".btn-motion").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.motion === name);
+    btn.classList.toggle("active", name !== "Rest" && btn.dataset.motion === name);
   });
+}
+
+function setBonusMotionOn(on) {
+  document.getElementById("motion-toggle-input").checked = on;
+  playBonusMotion(on ? bonusSelectedMotion : "Rest");
 }
 
 /* --- drag to reposition the (fixed-scale) model around the frame --- */
@@ -760,7 +773,14 @@ document.getElementById("btn-bonus-retake").addEventListener("click", () => {
 });
 
 document.querySelectorAll(".btn-motion").forEach(btn => {
-  btn.addEventListener("click", () => playBonusMotion(btn.dataset.motion));
+  btn.addEventListener("click", () => {
+    bonusSelectedMotion = btn.dataset.motion;
+    setBonusMotionOn(true);
+  });
+});
+
+document.getElementById("motion-toggle-input").addEventListener("change", e => {
+  setBonusMotionOn(e.target.checked);
 });
 
 const bonusGestureSurface = document.getElementById("bonus-three-canvas");
