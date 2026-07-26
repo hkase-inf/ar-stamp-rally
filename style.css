@@ -37,13 +37,6 @@ html, body {
   text-align: center;
   color: #fff;
 }
-.eyebrow {
-  letter-spacing: .12em;
-  font-size: 12px;
-  text-transform: uppercase;
-  color: #9fc2da;
-  margin: 0 0 8px;
-}
 .start-card h1 {
   font-size: 30px;
   line-height: 1.3;
