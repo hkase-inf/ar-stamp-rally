@@ -502,42 +502,6 @@ html, body {
   border-color: var(--accent);
 }
 
-.motion-toggle {
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.motion-toggle input { display: none; }
-.motion-toggle-track {
-  display: inline-block;
-  position: relative;
-  width: 44px;
-  height: 25px;
-  border-radius: 999px;
-  background: rgba(0,0,0,.45);
-  border: 1px solid rgba(255,255,255,.35);
-  transition: background .2s;
-}
-.motion-toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform .2s;
-}
-.motion-toggle input:checked + .motion-toggle-track {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.motion-toggle input:checked + .motion-toggle-track .motion-toggle-thumb {
-  transform: translateX(19px);
-}
-
 @media (orientation: landscape) {
   /* keep motion buttons at the top and the capture bar at the bottom so
      they never overlap; just tighten sizing since height is limited */

@@ -303,21 +303,47 @@ let bonusClips = {};
 let bonusActiveAction = null;
 
 // the model faces the camera at a fixed small scale (its low-poly mesh
-// looks rough up close); drag repositions it around the frame instead
+// looks rough up close); drag repositions it around the frame instead.
+// Landscape gets a bigger scale -- otherwise the character reads as tiny
+// against the much wider frame.
 const BONUS_FRONT_ROTATION_Y = -Math.PI / 2; // rotates the model's front to face the camera
-const BONUS_FIXED_SCALE = 0.4;
 let bonusModelSize = null; // THREE.Vector3, set at load time, used to clamp drag bounds
 let bonusModelBaseX = 0;
 let bonusModelBaseY = 0;
 let bonusOffsetX = 0;
 let bonusOffsetY = 0;
 
+function getBonusScale() {
+  return window.innerWidth > window.innerHeight ? 0.6 : 0.4;
+}
+
 function applyBonusTransform() {
   if (!bonusModel) return;
   bonusModel.rotation.y = BONUS_FRONT_ROTATION_Y;
-  bonusModel.scale.setScalar(BONUS_FIXED_SCALE);
+  bonusModel.scale.setScalar(getBonusScale());
   bonusModel.position.x = bonusModelBaseX + bonusOffsetX;
   bonusModel.position.y = bonusModelBaseY + bonusOffsetY;
+}
+
+// re-measures the model at the current scale and re-floors/re-centers it --
+// needed whenever the scale changes (e.g. on orientation change), since
+// scaling happens around the model's own origin, not its visual floor
+function refloorBonusModel() {
+  if (!bonusModel || !threeModules) return;
+  const { THREE } = threeModules;
+  bonusModel.position.set(0, 0, 0);
+  bonusModel.scale.setScalar(getBonusScale());
+  const box = new THREE.Box3().setFromObject(bonusModel);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  bonusModelBaseX = -center.x;
+  bonusModelBaseY = -box.min.y;
+  bonusModelSize = size;
+  bonusOffsetX = 0;
+  bonusOffsetY = 0;
+  applyBonusTransform();
 }
 
 async function loadThreeModules() {
@@ -472,32 +498,15 @@ async function initBonusThree() {
   bonusCamera.position.set(0, fullSize.y * 0.45, dist);
   bonusCamera.lookAt(0, fullSize.y * 0.45, 0);
 
-  // now apply the fixed display scale and re-center/floor at that size
-  model.scale.setScalar(BONUS_FIXED_SCALE);
-  const box = new THREE.Box3().setFromObject(model);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  model.position.x -= center.x;
-  model.position.z -= center.z;
-  model.position.y -= box.min.y;
-
-  bonusModelBaseX = model.position.x;
-  bonusModelBaseY = model.position.y;
-  bonusModelSize = size;
-  bonusOffsetX = 0;
-  bonusOffsetY = 0;
-  applyBonusTransform();
+  // apply the display scale (orientation-dependent) and floor/center it
+  refloorBonusModel();
 
   bonusMixer = new THREE.AnimationMixer(model);
   bonusClips = {};
   gltf.animations.forEach(clip => { bonusClips[clip.name] = clip; });
 
-  // start at rest (arms down, no motion) -- the toggle switch turns on
-  // whichever motion is selected (Wave by default once switched on)
-  bonusSelectedMotion = "Wave";
-  document.getElementById("motion-toggle-input").checked = false;
+  // start at rest (arms down, no motion) -- each motion button toggles itself
+  bonusSelectedMotion = null;
   playBonusMotion("Rest");
 
   bonusClock = new THREE.Clock();
@@ -520,7 +529,7 @@ function stopBonusRenderLoop() {
   bonusRAF = null;
 }
 
-let bonusSelectedMotion = "Wave"; // remembered choice, resumed when the toggle is switched back on
+let bonusSelectedMotion = null; // the motion button currently "on", if any
 
 function playBonusMotion(name) {
   const clip = bonusClips[name];
@@ -538,9 +547,15 @@ function playBonusMotion(name) {
   });
 }
 
-function setBonusMotionOn(on) {
-  document.getElementById("motion-toggle-input").checked = on;
-  playBonusMotion(on ? bonusSelectedMotion : "Rest");
+// each motion button is its own toggle: tap to play, tap again to go back to rest
+function toggleBonusMotion(name) {
+  if (bonusSelectedMotion === name) {
+    bonusSelectedMotion = null;
+    playBonusMotion("Rest");
+  } else {
+    bonusSelectedMotion = name;
+    playBonusMotion(name);
+  }
 }
 
 /* --- drag to reposition the (fixed-scale) model around the frame --- */
@@ -630,8 +645,8 @@ function stopBonusCamera() {
 
 function onBonusOrientationChange() {
   // mobile browsers often report stale inner dimensions right at the event
-  setTimeout(resizeBonusRenderer, 50);
-  setTimeout(resizeBonusRenderer, 300);
+  setTimeout(() => { resizeBonusRenderer(); refloorBonusModel(); }, 50);
+  setTimeout(() => { resizeBonusRenderer(); refloorBonusModel(); }, 300);
 }
 
 async function enterBonusStage() {
@@ -773,14 +788,7 @@ document.getElementById("btn-bonus-retake").addEventListener("click", () => {
 });
 
 document.querySelectorAll(".btn-motion").forEach(btn => {
-  btn.addEventListener("click", () => {
-    bonusSelectedMotion = btn.dataset.motion;
-    setBonusMotionOn(true);
-  });
-});
-
-document.getElementById("motion-toggle-input").addEventListener("change", e => {
-  setBonusMotionOn(e.target.checked);
+  btn.addEventListener("click", () => toggleBonusMotion(btn.dataset.motion));
 });
 
 const bonusGestureSurface = document.getElementById("bonus-three-canvas");
