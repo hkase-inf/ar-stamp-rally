@@ -109,13 +109,48 @@ const cameraFallback = document.getElementById("camera-fallback");
 const HUD_DEFAULT = "ポスターのQRコードを\n枠の中に収めてね";
 const HUD_FOUND = "認識しました！\nボタンをタップしてスタンプGET";
 
-const LOST_GRACE_MS = 800;
-const SCAN_INTERVAL_MS = 250;
+const LOST_GRACE_MS = 3000;
+const SCAN_INTERVAL_MS = 150;
+const VIEWFINDER_RATIO = 0.62; // must match the .viewfinder size in style.css
 
 let mediaStream = null;
 let scanTimer = null;
 let recognizedFigure = null;
 let lastMatchAt = 0;
+
+// cached crop of the video frame that corresponds to the on-screen viewfinder
+// square, recomputed only when the video/window size actually changes
+let scanCrop = null;
+let scanCropKey = "";
+
+function getScanCrop() {
+  const screenW = video.clientWidth;
+  const screenH = video.clientHeight;
+  const vidW = video.videoWidth;
+  const vidH = video.videoHeight;
+  if (!screenW || !screenH || !vidW || !vidH) return null;
+
+  const key = `${screenW}x${screenH}x${vidW}x${vidH}`;
+  if (key === scanCropKey) return scanCrop;
+  scanCropKey = key;
+
+  // video is displayed with object-fit: cover -- map the on-screen
+  // viewfinder square back to the matching pixel region of the raw frame
+  const coverScale = Math.max(screenW / vidW, screenH / vidH);
+  const offsetX = (screenW - vidW * coverScale) / 2;
+  const offsetY = (screenH - vidH * coverScale) / 2;
+
+  const size = Math.min(screenW, screenH) * VIEWFINDER_RATIO;
+  const squareLeft = (screenW - size) / 2;
+  const squareTop = (screenH - size) / 2;
+
+  const vSize = Math.min(size / coverScale, vidW, vidH);
+  const vLeft = Math.min(Math.max((squareLeft - offsetX) / coverScale, 0), vidW - vSize);
+  const vTop = Math.min(Math.max((squareTop - offsetY) / coverScale, 0), vidH - vSize);
+
+  scanCrop = { vLeft, vTop, vSize };
+  return scanCrop;
+}
 
 function setHud(text) {
   hudText.innerHTML = text.replace(/\n/g, "<br>");
@@ -138,13 +173,20 @@ function setRecognized(figure) {
 
 function scanFrame() {
   if (!video.videoWidth) return;
-  qrCanvas.width = video.videoWidth;
-  qrCanvas.height = video.videoHeight;
-  qrCtx.drawImage(video, 0, 0, qrCanvas.width, qrCanvas.height);
+  const crop = getScanCrop();
+  if (!crop) return;
 
-  const imageData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+  const size = Math.round(crop.vSize);
+  qrCanvas.width = size;
+  qrCanvas.height = size;
+  // only analyze the region behind the on-screen viewfinder square, not the
+  // whole camera frame -- faster per frame (lets us scan more often) and
+  // avoids false matches from QR-like patterns outside the aiming box
+  qrCtx.drawImage(video, crop.vLeft, crop.vTop, crop.vSize, crop.vSize, 0, 0, size, size);
+
+  const imageData = qrCtx.getImageData(0, 0, size, size);
   const code = jsQR(imageData.data, imageData.width, imageData.height, {
-    inversionAttempts: "dontInvert",
+    inversionAttempts: "attemptBoth",
   });
 
   const now = Date.now();
@@ -164,10 +206,16 @@ async function startAR() {
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        advanced: [{ focusMode: "continuous" }],
+      },
       audio: false,
     });
     video.srcObject = mediaStream;
+    scanCropKey = ""; // force recompute once the new stream's dimensions are known
     scanTimer = setInterval(scanFrame, SCAN_INTERVAL_MS);
   } catch (err) {
     console.warn("camera unavailable", err);
