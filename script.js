@@ -846,13 +846,47 @@ bonusGestureSurface.addEventListener("pointerup", bonusPointerUp);
 bonusGestureSurface.addEventListener("pointercancel", bonusPointerUp);
 bonusGestureSurface.addEventListener("pointerleave", bonusPointerUp);
 
-// debug-only shortcut for testing: fills every stamp and jumps straight to
-// the bonus stage so it doesn't need to be reached by scanning all 9 QR codes
-document.getElementById("btn-debug-fill").addEventListener("click", () => {
+/* ---------------- hidden debug shortcut ---------------- */
+/* No visible button: tap the title 7 times within 2.5s, then enter the
+   password, to fill all 9 stamps and jump straight to the bonus stage
+   without scanning every poster. This is a light deterrent for event
+   staff, not real security -- the hash below is still visible to anyone
+   reading this repo's source, it just isn't a plaintext password. */
+
+const DEBUG_TAP_TARGET = 7;
+const DEBUG_TAP_WINDOW_MS = 2500;
+const DEBUG_PASSWORD_HASH = "08aeafbb700dbb581d922d9027a1903599fff7ed40578861cc14d78c96a11821"; // sha256("shizuppi9")
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function runDebugFill() {
+  const pw = window.prompt("デバッグパスワードを入力してください");
+  if (pw === null) return;
+  const hash = await sha256Hex(pw);
+  if (hash !== DEBUG_PASSWORD_HASH) {
+    window.alert("パスワードが違います");
+    return;
+  }
   saveCollected(FIGURES.map(f => f.id));
   renderPassport(null);
   showScreen("screen-stamp");
   enterBonusStage();
+}
+
+let debugTapCount = 0;
+let debugTapResetTimer = null;
+document.getElementById("app-title").addEventListener("click", () => {
+  debugTapCount++;
+  clearTimeout(debugTapResetTimer);
+  debugTapResetTimer = setTimeout(() => { debugTapCount = 0; }, DEBUG_TAP_WINDOW_MS);
+  if (debugTapCount >= DEBUG_TAP_TARGET) {
+    debugTapCount = 0;
+    clearTimeout(debugTapResetTimer);
+    runDebugFill();
+  }
 });
 
 renderPassport(null);

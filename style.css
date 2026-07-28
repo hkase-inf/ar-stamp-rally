@@ -54,19 +54,6 @@ html, body {
   color: #8ba3b3;
 }
 
-.btn-debug {
-  display: block;
-  margin: 28px auto 0;
-  padding: 8px 14px;
-  font-size: 11px;
-  color: #ffcf6b;
-  background: transparent;
-  border: 1px dashed rgba(255,207,107,.5);
-  border-radius: 8px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .btn-primary {
   font-size: 16px;
   font-weight: 700;
