@@ -855,7 +855,7 @@ bonusGestureSurface.addEventListener("pointerleave", bonusPointerUp);
 
 const DEBUG_TAP_TARGET = 7;
 const DEBUG_TAP_WINDOW_MS = 2500;
-const DEBUG_PASSWORD_HASH = "08aeafbb700dbb581d922d9027a1903599fff7ed40578861cc14d78c96a11821"; // sha256("shizuppi9")
+const DEBUG_PASSWORD_HASH = "08aeafbb700dbb581d922d9027a1903599fff7ed40578861cc14d78c96a11821";
 
 async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
