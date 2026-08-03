@@ -28,14 +28,17 @@ html, body {
 #screen-start {
   background: radial-gradient(circle at 30% 20%, #3a5670, #10202e 70%);
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .start-card {
   max-width: 420px;
+  width: 100%;
   text-align: center;
   color: #fff;
+  padding: 12px 0 40px;
 }
 .start-card h1 {
   font-size: 30px;
@@ -46,12 +49,123 @@ html, body {
   font-size: 15px;
   line-height: 1.7;
   color: #d8e4ec;
-  margin: 0 0 28px;
+  margin: 0 0 16px;
+}
+.promo {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #ffe9b3;
+  background: rgba(255,207,107,.12);
+  border: 1px solid rgba(255,207,107,.35);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 0 0 22px;
 }
 .hint {
-  margin-top: 18px;
+  margin-top: 14px;
   font-size: 12px;
   color: #8ba3b3;
+}
+
+.btn-secondary {
+  display: block;
+  width: 100%;
+  margin: 12px auto 0;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-secondary:active { transform: scale(.97); }
+
+.start-section {
+  margin-top: 30px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255,255,255,.14);
+  text-align: left;
+}
+.start-section-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d8e4ec;
+  letter-spacing: .04em;
+}
+
+.poster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.poster-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #d8e4ec;
+}
+.poster-marker {
+  flex: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffcf6b;
+}
+.poster-name {
+  color: #fff;
+  font-weight: 700;
+}
+.poster-kana {
+  color: #a9bccb;
+  font-weight: 400;
+}
+.poster-location {
+  color: #a9bccb;
+}
+.poster-location::before {
+  content: "— ";
+}
+
+.map-thumb-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.map-thumb {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.map-thumb-hint {
+  display: block;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+  background: var(--paper);
+}
+
+.notice {
+  margin-top: 22px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #93a8b6;
 }
 
 .btn-primary {
@@ -155,6 +269,39 @@ html, body {
 }
 .camera-hud .btn-text { color: rgba(255,255,255,.7); }
 
+/* ---------- map viewer screen ---------- */
+#screen-map {
+  background: #0b0f14;
+}
+.map-viewer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#map-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: center center;
+}
+.map-viewer-hint {
+  position: absolute;
+  left: 0; right: 0; bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 2;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,.6);
+  pointer-events: none;
+}
+
 /* ---------- stamp screen ---------- */
 #screen-stamp {
   background: rgba(0,0,0,.55);
@@ -163,6 +310,8 @@ html, body {
   justify-content: center;
 }
 #screen-stamp.active { display: flex; }
+
+.passport-card .btn-text { color: #9a9284; }
 
 .stamp-overlay {
   position: relative;

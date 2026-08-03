@@ -4,6 +4,9 @@ const FIGURES = [
   {
     id: "grace-hopper",
     name: "Grace Hopper",
+    nameKana: "グレイス・ホッパー",
+    marker: "Ⓐ",
+    location: "1号館 1F ラウンジ",
     qrMatch: "gratefigures_01",
     stampImg: "assets/grace-hopper-stamp.png",
     bio: "1906–1992。アメリカ海軍少将であり計算機科学者。プログラミング言語を人間にとって読みやすいものにしようと、世界最初期のコンパイラを開発しました。その成果は後にCOBOLの誕生へとつながり、今日の情報システムの基盤を築いたことから「コンピュータプログラミングの母」とも呼ばれています。",
@@ -12,6 +15,9 @@ const FIGURES = [
   {
     id: "tim-berners-lee",
     name: "Tim Berners-Lee",
+    nameKana: "ティム・バーナーズ＝リー",
+    marker: "Ⓑ",
+    location: "2号館 1F ラウンジ（自販機横）",
     qrMatch: "gratefigures_02",
     stampImg: "assets/tim-berners-lee-stamp.png",
     bio: "1955–。英国出身の計算機科学者。CERN在籍中の1990年、研究成果を共有する仕組みとしてワールド・ワイド・ウェブ（WWW）を考案し、世界初のウェブサイトとブラウザを開発しました。現代のインターネット社会の土台を築いた人物です。",
@@ -20,6 +26,9 @@ const FIGURES = [
   {
     id: "marvin-minsky",
     name: "Marvin Minsky",
+    nameKana: "マーヴィン・ミンスキー",
+    marker: "Ⓒ",
+    location: "2号館 7F 東側エレベーター横",
     qrMatch: "greatfigures_03",
     stampImg: "assets/marvin-minsky-stamp.png",
     bio: "1927–2016。アメリカの認知科学者・AI研究者。1959年にMITで人工知能研究所を共同設立し、「人工知能」という分野を切り拓いた第一人者の一人です。著書『The Society of Mind』では、心とは単純な仕組みが数多く協調して生まれるものだという理論を提唱しました。",
@@ -28,6 +37,9 @@ const FIGURES = [
   {
     id: "alan-turing",
     name: "Alan Turing",
+    nameKana: "アラン・チューリング",
+    marker: "Ⓓ",
+    location: "2号館 6F 西側エレベーター横",
     qrMatch: "greatfigures_04",
     stampImg: "assets/alan-turing-stamp.png",
     bio: "1912–1954。現代計算機科学の基礎を築いた数学者。1936年、抽象的な計算のしくみである「チューリングマシン」を考案し、「計算とは何か」を理論化しました。1950年には機械が思考しうるかを問う「チューリングテスト」を提示しています。",
@@ -36,6 +48,9 @@ const FIGURES = [
   {
     id: "claude-shannon",
     name: "Claude Shannon",
+    nameKana: "クロード・シャノン",
+    marker: "Ⓔ",
+    location: "2号館 6F 東側エレベーター横",
     qrMatch: "greatfigures_05",
     stampImg: "assets/claude-shannon-stamp.png",
     bio: "1916–2001。「情報理論」の生みの親。1948年の論文で情報量やビット、通信容量といった概念を数学的に定義し、雑音のある通信路でも誤り訂正しながら正確に情報を伝えられることを示しました。今日のデジタル通信・インターネットの理論的土台です。",
@@ -44,6 +59,9 @@ const FIGURES = [
   {
     id: "john-von-neumann",
     name: "John von Neumann",
+    nameKana: "ジョン・フォン・ノイマン",
+    marker: "Ⓕ",
+    location: "2号館 5F 西側エレベーター横",
     qrMatch: "greatfigures_06",
     stampImg: "assets/john-von-neumann-stamp.png",
     bio: "1903–1957。数学・物理・経済など複数分野にまたがる業績を残した学者。プログラムとデータを同じメモリに格納する「ノイマン型」のコンピュータ構造を提案し、今日のほぼすべてのコンピュータの基本設計として使われています。ゲーム理論の確立者でもあります。",
@@ -52,6 +70,9 @@ const FIGURES = [
   {
     id: "alan-kay",
     name: "Alan Kay",
+    nameKana: "アラン・ケイ",
+    marker: "Ⓖ",
+    location: "2号館 4F 西側エレベーター横",
     qrMatch: "greatfigures_07",
     stampImg: "assets/alan-kay-stamp.png",
     bio: "1940–。Xerox PARCで活躍した計算機科学者。開発した言語Smalltalkはオブジェクト指向プログラミングの先駆けとなり、後のJavaやPython、GUIの考え方に影響を与えました。1970年代には、誰もが使える携帯型の知的道具「Dynabook」を構想し、今日のタブレットやノートPCの原型となりました。",
@@ -60,6 +81,8 @@ const FIGURES = [
   {
     id: "jun-murai",
     name: "村井純",
+    marker: "Ⓗ",
+    location: "2号館 4F 東側エレベーター横",
     qrMatch: "greatfigures_08",
     stampImg: "assets/jun-murai-stamp.png",
     bio: "1955–。日本にインターネット技術を導入し、学術ネットワークから商用インターネットへの普及を主導した人物で、「日本のインターネットの父」と呼ばれています。1980年代にWIDEプロジェクトを立ち上げ、日本のネットワーク基盤づくりを牽引しました。",
@@ -68,6 +91,9 @@ const FIGURES = [
   {
     id: "herbert-simon",
     name: "Herbert A. Simon",
+    nameKana: "ハーバート・サイモン",
+    marker: "Ⓘ",
+    location: "2号館 8F 東側エレベーター横",
     qrMatch: "greatfigures_09",
     stampImg: "assets/herbert-simon-stamp.png",
     bio: "1916–2001。認知科学・経済学など幅広い分野で革新的理論を残した学者。人工知能の草創期には知能をシンボル操作として捉える理論を提唱し、経済学では人間の意思決定を現実的にとらえる「限定合理性」の概念を導入しました。1978年にノーベル経済学賞を受賞しています。",
@@ -274,6 +300,47 @@ function renderPassport(justFilledId) {
   document.getElementById("bonus-enter-hint").classList.toggle("hidden", !showBonus);
 }
 
+function renderPosterList() {
+  const list = document.getElementById("poster-list");
+  list.innerHTML = "";
+  FIGURES.forEach(fig => {
+    const li = document.createElement("li");
+
+    const marker = document.createElement("span");
+    marker.className = "poster-marker";
+    marker.textContent = fig.marker || "";
+    li.appendChild(marker);
+
+    const details = document.createElement("span");
+    const name = document.createElement("span");
+    name.className = "poster-name";
+    name.textContent = fig.name;
+    details.appendChild(name);
+    if (fig.nameKana) {
+      const kana = document.createElement("span");
+      kana.className = "poster-kana";
+      kana.textContent = `（${fig.nameKana}）`;
+      details.appendChild(kana);
+    }
+    const location = document.createElement("div");
+    location.className = "poster-location";
+    location.textContent = fig.location || "";
+    details.appendChild(location);
+    li.appendChild(details);
+
+    list.appendChild(li);
+  });
+}
+
+// entry point from the TOP screen: shows the passport as-is, without the
+// "just got a stamp" fx overlay (that's only for triggerStamp()'s flow)
+function showCollectedStamps() {
+  document.getElementById("stamp-fx").classList.add("hidden");
+  document.getElementById("figure-bio").classList.add("hidden");
+  renderPassport(null);
+  showScreen("screen-stamp");
+}
+
 /* ---------------- little synth "thunk" sound ---------------- */
 
 function playThunk() {
@@ -322,6 +389,7 @@ function triggerStamp() {
   showScreen("screen-stamp");
   document.getElementById("screen-stamp").classList.add("active");
   document.getElementById("figure-bio").classList.add("hidden");
+  document.getElementById("stamp-fx").classList.remove("hidden");
 
   // restart the fx animations every time, even if the stamp screen was
   // already visible (CSS animations only auto-replay on a display:none -> block
@@ -806,6 +874,105 @@ async function saveBonusPhoto() {
   a.remove();
 }
 
+/* ---------------- campus map viewer (pinch-zoom / pan) ---------------- */
+
+const MAP_MIN_SCALE = 1;
+const MAP_MAX_SCALE = 4;
+
+const mapImage = document.getElementById("map-image");
+const mapViewport = document.getElementById("map-viewport");
+
+let mapScale = 1;
+let mapX = 0;
+let mapY = 0;
+const mapPointers = new Map();
+let mapPanLast = null;
+let mapPinchStartDist = 0;
+let mapPinchStartScale = 1;
+
+function applyMapTransform() {
+  mapImage.style.transform = `translate(${mapX}px, ${mapY}px) scale(${mapScale})`;
+}
+
+function resetMapView() {
+  mapScale = 1;
+  mapX = 0;
+  mapY = 0;
+  applyMapTransform();
+}
+
+function clampMapPan() {
+  // keep the image roughly within reach of the viewport at the current scale,
+  // rather than letting it be dragged fully off-screen
+  const maxPanX = (mapViewport.clientWidth * (mapScale - 1)) / 2;
+  const maxPanY = (mapViewport.clientHeight * (mapScale - 1)) / 2;
+  mapX = Math.max(-maxPanX, Math.min(maxPanX, mapX));
+  mapY = Math.max(-maxPanY, Math.min(maxPanY, mapY));
+}
+
+function openMapViewer() {
+  resetMapView();
+  showScreen("screen-map");
+}
+
+function mapPointerDown(e) {
+  mapViewport.setPointerCapture(e.pointerId);
+  mapPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (mapPointers.size === 1) {
+    mapPanLast = { x: e.clientX, y: e.clientY };
+  } else if (mapPointers.size === 2) {
+    const [p1, p2] = [...mapPointers.values()];
+    mapPinchStartDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    mapPinchStartScale = mapScale;
+  }
+}
+
+function mapPointerMove(e) {
+  if (!mapPointers.has(e.pointerId)) return;
+  mapPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (mapPointers.size === 2) {
+    const [p1, p2] = [...mapPointers.values()];
+    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    if (mapPinchStartDist > 0) {
+      mapScale = Math.max(MAP_MIN_SCALE, Math.min(MAP_MAX_SCALE, mapPinchStartScale * (dist / mapPinchStartDist)));
+      clampMapPan();
+      applyMapTransform();
+    }
+  } else if (mapPointers.size === 1 && mapPanLast) {
+    const dx = e.clientX - mapPanLast.x;
+    const dy = e.clientY - mapPanLast.y;
+    mapPanLast = { x: e.clientX, y: e.clientY };
+    if (mapScale > 1) {
+      mapX += dx;
+      mapY += dy;
+      clampMapPan();
+      applyMapTransform();
+    }
+  }
+}
+
+function mapPointerUp(e) {
+  mapPointers.delete(e.pointerId);
+  mapPinchStartDist = 0;
+  if (mapPointers.size === 1) {
+    const [p] = mapPointers.values();
+    mapPanLast = { x: p.x, y: p.y };
+  } else {
+    mapPanLast = null;
+  }
+}
+
+// double-tap/double-click toggles between fit and a 2.5x zoom
+function mapToggleZoom() {
+  if (mapScale > 1) {
+    resetMapView();
+  } else {
+    mapScale = 2.5;
+    applyMapTransform();
+  }
+}
+
 /* ---------------- wiring ---------------- */
 
 document.getElementById("btn-open-camera").addEventListener("click", () => {
@@ -823,6 +990,23 @@ document.getElementById("btn-scan").addEventListener("click", triggerStamp);
 document.getElementById("btn-continue").addEventListener("click", () => {
   showScreen("screen-camera");
 });
+
+document.getElementById("btn-stamp-to-start").addEventListener("click", () => {
+  showScreen("screen-start");
+});
+
+document.getElementById("btn-view-stamps").addEventListener("click", showCollectedStamps);
+
+document.getElementById("btn-open-map").addEventListener("click", openMapViewer);
+document.getElementById("btn-close-map").addEventListener("click", () => {
+  showScreen("screen-start");
+});
+
+mapViewport.addEventListener("pointerdown", mapPointerDown);
+mapViewport.addEventListener("pointermove", mapPointerMove);
+mapViewport.addEventListener("pointerup", mapPointerUp);
+mapViewport.addEventListener("pointercancel", mapPointerUp);
+mapViewport.addEventListener("dblclick", mapToggleZoom);
 
 document.getElementById("btn-bonus-enter").addEventListener("click", enterBonusStage);
 document.getElementById("btn-bonus-back").addEventListener("click", exitBonusStage);
@@ -890,3 +1074,4 @@ document.getElementById("app-title").addEventListener("click", () => {
 });
 
 renderPassport(null);
+renderPosterList();

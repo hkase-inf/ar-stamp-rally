@@ -30,9 +30,36 @@
   <div class="start-card">
     <h1 id="app-title">情報の偉人<br>デジタルスタンプラリー</h1>
     <p class="lead">廊下のポスターのQRコードにスマホをかざして、<br>9人の偉人スタンプを集めよう。<br>9個揃ったら、ARでしずっぴーと写真が撮れます。</p>
+
+    <p class="promo">🎁 オープンキャンパス特別企画で9人の偉人のスタンプを集めると、静大グッズがもらえます</p>
+
     <button id="btn-open-camera" class="btn-primary">はじめる（カメラ起動）</button>
+    <button id="btn-view-stamps" class="btn-secondary">🖼️ 集めたスタンプを見る</button>
     <p class="hint">9人全員のポスターに対応しています</p>
+
+    <div class="start-section">
+      <p class="start-section-title">ポスターの場所</p>
+      <ul class="poster-list" id="poster-list"></ul>
+    </div>
+
+    <div class="start-section">
+      <p class="start-section-title">キャンパスマップ</p>
+      <button id="btn-open-map" class="map-thumb-btn">
+        <img src="assets/campus-map.png" alt="キャンパスマップ（タップで拡大表示）" class="map-thumb">
+        <span class="map-thumb-hint">🔍 タップで拡大表示</span>
+      </button>
+    </div>
+
+    <p class="notice">⚠️ スタンプの記録はこの端末のブラウザ内に保存されます。シークレット（プライベート）ブラウジングでアクセスした場合、ウィンドウを閉じると記録が消えます。通常モードでのアクセスをおすすめします。また、機種変更やブラウザの変更、ブラウザの閲覧履歴・データの削除でも記録は消えますのでご注意ください。</p>
   </div>
+</div>
+
+<div id="screen-map" class="screen">
+  <div class="map-viewer" id="map-viewport">
+    <img id="map-image" src="assets/campus-map.png" alt="キャンパスマップ">
+  </div>
+  <p class="map-viewer-hint">ピンチで拡大・ドラッグで移動</p>
+  <button id="btn-close-map" class="btn-icon map-close" title="閉じる">✕</button>
 </div>
 
 <div id="screen-camera" class="screen">
@@ -74,6 +101,7 @@
       <button id="btn-bonus-enter" class="btn-primary btn-bonus hidden">🎉 ボーナスステージへ</button>
       <p id="bonus-enter-hint" class="bonus-enter-hint hidden">🤳 しずっぴーと一緒に写真を撮ろう！</p>
       <button id="btn-continue" class="btn-primary">カメラに戻る</button>
+      <button id="btn-stamp-to-start" class="btn-text">はじめの画面に戻る</button>
     </div>
 
     <div class="stamp-fx" id="stamp-fx">
